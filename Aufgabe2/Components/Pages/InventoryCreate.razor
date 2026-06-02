@@ -1,0 +1,119 @@
+@page "/inventory/create"
+@inject InventoryService InventoryService
+@inject ReservationContext Db
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<PageTitle>New inventory item</PageTitle>
+
+<RadzenStack Gap="1.5rem" Style="max-width: 680px">
+
+    @* --- Breadcrumb + header -------------------------------------------- *@
+    <RadzenStack Gap="0.75rem">
+        <RadzenButton Icon="arrow_back" Variant="Variant.Text" Text="Back to overview"
+                      ButtonStyle="ButtonStyle.Secondary" class="rz-p-0"
+                      Click="@(() => Navigation.NavigateTo("/"))" />
+        <RadzenStack Gap="0.25rem" class="page-header">
+            <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">New item</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body1" class="page-subtitle">
+                Add a new piece of equipment to the inventory.
+            </RadzenText>
+        </RadzenStack>
+    </RadzenStack>
+
+    <RadzenCard>
+        @* Standard EditForm + DataAnnotationsValidator keeps the validation rules in a single
+           place (InventoryItemFormModel); no invalid record can reach the service. *@
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="1.25rem">
+                <div>
+                    <RadzenFormField Text="Serial number" Variant="Variant.Outlined" Style="width: 100%">
+                        <Start><RadzenIcon Icon="qr_code_2" /></Start>
+                        <ChildContent>
+                            <RadzenTextBox @bind-Value="_model.SerialNumber" MaxLength="255" />
+                        </ChildContent>
+                    </RadzenFormField>
+                    <ValidationMessage For="@(() => _model.SerialNumber)" class="rz-color-danger" />
+                </div>
+
+                <div>
+                    <RadzenFormField Text="Name" Variant="Variant.Outlined" Style="width: 100%">
+                        <Start><RadzenIcon Icon="label" /></Start>
+                        <ChildContent>
+                            <RadzenTextBox @bind-Value="_model.ItemName" MaxLength="255" />
+                        </ChildContent>
+                    </RadzenFormField>
+                    <ValidationMessage For="@(() => _model.ItemName)" class="rz-color-danger" />
+                    <p class="form-hint">Between 1 and 255 characters.</p>
+                </div>
+
+                <div>
+                    <RadzenFormField Text="Category" Variant="Variant.Outlined" Style="width: 100%">
+                        <Start><RadzenIcon Icon="category" /></Start>
+                        <ChildContent>
+                            <RadzenDropDown @bind-Value="_model.CategoryId" Data="@_categories"
+                                            TextProperty="Text" ValueProperty="Id" Placeholder="Select a category" />
+                        </ChildContent>
+                    </RadzenFormField>
+                    <ValidationMessage For="@(() => _model.CategoryId)" class="rz-color-danger" />
+                </div>
+
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenSwitch @bind-Value="_model.IsAvailable" Name="isAvailable" />
+                    <RadzenLabel Text="Available for loan" Component="isAvailable" />
+                </RadzenStack>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-2">
+                    <RadzenButton ButtonType="ButtonType.Submit" Text="Create item" Icon="save"
+                                  ButtonStyle="ButtonStyle.Primary" IsBusy="@_submitting" Disabled="@_submitting" />
+                    <RadzenButton ButtonType="ButtonType.Button" Text="Cancel" Variant="Variant.Flat"
+                                  ButtonStyle="ButtonStyle.Light" Disabled="@_submitting"
+                                  Click="@(() => Navigation.NavigateTo("/"))" />
+                </RadzenStack>
+            </RadzenStack>
+        </EditForm>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private readonly InventoryItemFormModel _model = new();
+    private IReadOnlyList<Category> _categories = [];
+    private bool _submitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _categories = await Db.Categories.OrderBy(category => category.Text).ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Could not load categories", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Invoked only once the model passes annotation validation. Translates domain failures
+    /// into user feedback while keeping the form open and editable on error.
+    /// </summary>
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        try
+        {
+            var created = await InventoryService.AddInventoryItem(_model.ToCommand());
+            NotificationService.Notify(NotificationSeverity.Success, "Item created",
+                $"'{created.ItemName}' was created successfully.");
+            Navigation.NavigateTo($"/inventory/{created.Id}");
+        }
+        catch (InventoryServiceException ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Could not create item", ex.Message);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+}

@@ -1,0 +1,208 @@
+@page "/"
+@page "/inventory"
+@inject InventoryService InventoryService
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<PageTitle>Inventory overview</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+
+    @* --- Page header ----------------------------------------------------- *@
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem"
+                 class="page-header">
+        <RadzenStack Gap="0.25rem">
+            <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Inventory</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body1" class="page-subtitle">
+                Manage your loanable equipment and its reservations.
+            </RadzenText>
+        </RadzenStack>
+        <RadzenButton Icon="add" Text="New item" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large"
+                      Click="@(() => Navigation.NavigateTo("/inventory/create"))" />
+    </RadzenStack>
+
+    @* --- KPI cards ------------------------------------------------------- *@
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeSm="4">
+            <StatCard Title="Total items" Value="@_items.Count.ToString()"
+                      Icon="inventory_2" Color="#2563eb" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeSm="4">
+            <StatCard Title="Available" Value="@_availableCount.ToString()"
+                      Icon="check_circle" Color="#16a34a" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeSm="4">
+            <StatCard Title="Unavailable" Value="@_unavailableCount.ToString()"
+                      Icon="do_not_disturb_on" Color="#dc2626" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    @* --- Toolbar + grid -------------------------------------------------- *@
+    <RadzenCard Variant="Variant.Flat" class="rz-p-0">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                     JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem"
+                     class="rz-p-3">
+            <RadzenFormField Text="Search by name or serial number" Variant="Variant.Outlined" Style="min-width: 320px">
+                <Start><RadzenIcon Icon="search" /></Start>
+                <ChildContent>
+                    <RadzenTextBox @bind-Value="_search" @bind-Value:after="OnSearchAsync" />
+                </ChildContent>
+            </RadzenFormField>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <RadzenSwitch @bind-Value="_includeReservations" Name="includeReservations"
+                              Change="@(async (bool _) => await LoadAsync())" />
+                <RadzenLabel Text="Load reservations" Component="includeReservations" />
+            </RadzenStack>
+        </RadzenStack>
+
+        <RadzenDataGrid @ref="_grid" Data="@FilteredItems" TItem="InventoryItem" IsLoading="@_loading"
+                        AllowSorting="true" AllowPaging="true" PageSize="10"
+                        ExpandMode="DataGridExpandMode.Single" GridLines="DataGridGridLines.Horizontal"
+                        EmptyText="No inventory items match your search.">
+            <Columns>
+                <RadzenDataGridColumn TItem="InventoryItem" Property="Id" Title="Id" Width="72px" />
+                <RadzenDataGridColumn TItem="InventoryItem" Property="SerialNumber" Title="Serial number" Width="180px" />
+                <RadzenDataGridColumn TItem="InventoryItem" Property="ItemName" Title="Name" />
+                <RadzenDataGridColumn TItem="InventoryItem" Property="Category.Text" Title="Category" Width="160px">
+                    <Template Context="item">
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@item.Category.Text" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="InventoryItem" Title="Availability" Width="150px" Sortable="false">
+                    <Template Context="item">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            <RadzenSwitch Value="@item.IsAvailable"
+                                          Change="@(async (bool value) => await ToggleAvailabilityAsync(item, value))" />
+                            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0">
+                                @(item.IsAvailable ? "Available" : "Unavailable")
+                            </RadzenText>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="InventoryItem" Title="" Width="64px" Sortable="false" TextAlign="TextAlign.Center">
+                    <Template Context="item">
+                        <RadzenButton Icon="visibility" Size="ButtonSize.Small" Variant="Variant.Text"
+                                      ButtonStyle="ButtonStyle.Secondary"
+                                      Click="@(() => Navigation.NavigateTo($"/inventory/{item.Id}"))"
+                                      title="Show details" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+            <Template Context="item">
+                @if (_includeReservations)
+                {
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mt-2 rz-mb-1">Reservations</RadzenText>
+                    <RadzenDataGrid Data="@item.Reservations" TItem="Reservation" AllowSorting="true"
+                                    GridLines="DataGridGridLines.Horizontal"
+                                    EmptyText="No reservations for this item.">
+                        <Columns>
+                            <RadzenDataGridColumn TItem="Reservation" Title="Person">
+                                <Template Context="reservation">
+                                    @reservation.Person.FirstName @reservation.Person.LastName
+                                </Template>
+                            </RadzenDataGridColumn>
+                            <RadzenDataGridColumn TItem="Reservation" Property="LoanDate" Title="Loan date" />
+                            <RadzenDataGridColumn TItem="Reservation" Property="ReturnDate" Title="Return date" />
+                            <RadzenDataGridColumn TItem="Reservation" Property="Status.Text" Title="Status">
+                                <Template Context="reservation">
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@reservation.Status.Text" />
+                                </Template>
+                            </RadzenDataGridColumn>
+                        </Columns>
+                    </RadzenDataGrid>
+                }
+                else
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" class="rz-p-2 page-subtitle">
+                        Enable "Load reservations" to display the reservations of this item.
+                    </RadzenText>
+                }
+            </Template>
+        </RadzenDataGrid>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<InventoryItem> _grid = default!;
+    private List<InventoryItem> _items = [];
+    private string _search = string.Empty;
+    private bool _includeReservations;
+    private bool _loading;
+
+    private int _availableCount;
+    private int _unavailableCount;
+
+    /// <summary>Applies the free-text filter (name or serial number) to the loaded items.</summary>
+    private IEnumerable<InventoryItem> FilteredItems =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _items
+            : _items.Where(item =>
+                item.ItemName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || item.SerialNumber.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    /// <summary>
+    /// (Re)loads all inventory items, eagerly fetching reservations only when requested.
+    /// </summary>
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            IQueryable<InventoryItem> query = InventoryService.InventoryItems.Include(item => item.Category);
+            if (_includeReservations)
+            {
+                query = query
+                    .Include(item => item.Reservations).ThenInclude(reservation => reservation.Person)
+                    .Include(item => item.Reservations).ThenInclude(reservation => reservation.Status);
+            }
+
+            _items = await query.OrderBy(item => item.Id).ToListAsync();
+            RecalculateStats();
+        }
+        catch (Exception ex)
+        {
+            NotifyError(ex);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearchAsync() => await _grid.Reload();
+
+    /// <summary>
+    /// Persists an availability change through the service and keeps the UI consistent:
+    /// on failure the optimistic value is rolled back so switch and data never drift apart.
+    /// </summary>
+    private async Task ToggleAvailabilityAsync(InventoryItem item, bool value)
+    {
+        try
+        {
+            await InventoryService.UpdateAvailability(new UpdateAvailabilityCmd(item.Id, value));
+            item.IsAvailable = value;
+            RecalculateStats();
+            NotificationService.Notify(NotificationSeverity.Success, "Availability updated",
+                $"'{item.ItemName}' is now {(value ? "available" : "unavailable")}.");
+        }
+        catch (InventoryServiceException ex)
+        {
+            // Covers InventoryNotFoundException as well, since it derives from InventoryServiceException.
+            item.IsAvailable = !value;
+            NotificationService.Notify(NotificationSeverity.Error, "Update failed", ex.Message);
+            await _grid.Reload();
+        }
+    }
+
+    private void RecalculateStats()
+    {
+        _availableCount = _items.Count(item => item.IsAvailable);
+        _unavailableCount = _items.Count - _availableCount;
+    }
+
+    private void NotifyError(Exception ex) =>
+        NotificationService.Notify(NotificationSeverity.Error, "Could not load inventory", ex.Message);
+}

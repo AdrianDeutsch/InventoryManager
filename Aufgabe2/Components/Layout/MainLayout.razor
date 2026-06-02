@@ -1,0 +1,32 @@
+@inherits LayoutComponentBase
+
+@* Hosts the Radzen overlay services (notifications, dialogs, tooltips, context menus). *@
+<RadzenComponents />
+
+<RadzenLayout>
+    <RadzenHeader class="app-header">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                     Gap="0.75rem" class="rz-px-3 rz-py-2">
+            <RadzenSidebarToggle Click="@(() => _sidebarExpanded = !_sidebarExpanded)" />
+            <span class="app-brand-badge"><RadzenIcon Icon="inventory_2" /></span>
+            <RadzenText TextStyle="TextStyle.H6" class="rz-m-0 app-brand">Inventory Manager</RadzenText>
+        </RadzenStack>
+    </RadzenHeader>
+
+    <RadzenSidebar @bind-Expanded="_sidebarExpanded" Responsive="true" class="rz-shadow-0">
+        <RadzenPanelMenu>
+            <RadzenPanelMenuItem Text="Overview" Icon="dashboard" Path="/" Match="NavLinkMatch.All" />
+            <RadzenPanelMenuItem Text="New item" Icon="add_box" Path="inventory/create" />
+        </RadzenPanelMenu>
+    </RadzenSidebar>
+
+    <RadzenBody>
+        <div class="page-container rz-p-4">
+            @Body
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+
+@code {
+    private bool _sidebarExpanded = true;
+}

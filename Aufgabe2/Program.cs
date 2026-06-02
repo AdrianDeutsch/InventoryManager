@@ -1,51 +1,53 @@
+using Aufgabe2.Components;
 using Aufgabe2.Services;
 using BaseModel.Infrastructure;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-public class Program
+using Radzen;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// --- Blazor Server (InteractiveServer) ---
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+// --- Radzen: notification, dialog, tooltip and context-menu services ---
+builder.Services.AddRadzenComponents();
+
+// --- Persistence ---
+// The connection string points to an in-memory SQLite database (DataSource=:memory:).
+// In-memory databases live exactly as long as their underlying connection, so we open a
+// single shared connection up front and keep it alive for the whole application lifetime.
+// EF Core never closes a connection it did not open itself, which is exactly what we need here.
+var connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException("Missing ConnectionStrings:Default in appsettings.json.");
+var connection = new SqliteConnection(connectionString);
+connection.Open();
+
+builder.Services.AddDbContext<ReservationContext>(options => options.UseSqlite(connection));
+builder.Services.AddScoped<InventoryService>();
+
+var app = builder.Build();
+
+// Create (and in development seed) the schema once on the shared connection.
+using (var scope = app.Services.CreateScope())
 {
-    private static void Main(string[] args)
-    {
-        // STEP 1: Configuring ASP.NET Core Services
-        var builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddControllers();
-
-        // Configure Datebase with settings from appsettings.json (section ConnectionStrings)
-        var databaseName = builder.Configuration.GetConnectionString("Default")
-            ?? throw new Exception("Missing ConnectionString:Default in appsettings.json.");
-        var connection = new SqliteConnection(databaseName);
-        builder.Services.AddDbContextFactory<ReservationContext>(options =>
-            options.UseSqlite(connection));
-
-        builder.Services.AddSingleton<TimeProvider>((provider) => TimeProvider.System);
-        builder.Services.AddScoped<InventoryService>();
-
-        // STEP 2: Configuring ASP.NET Core request pipeline
-        var app = builder.Build();
-        if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
-        {
-
-            using (var scope = app.Services.CreateScope())
-            using (var service = scope.ServiceProvider.GetRequiredService<ReservationContext>())
-            {
-                service.Database.EnsureDeleted();
-                // To prevent EnsureCreated from closing the connection and losing the in-memory DB.
-                service.Database.OpenConnection();
-                service.Database.EnsureCreated();
-                if (app.Environment.IsDevelopment()) service.Seed();
-            }
-        }
-        // Assign controllers to routes.
-        app.MapControllers();
-        app.Run();
-        app.Logger.LogInformation($"Close connection to {databaseName}...");
-        connection.Close();
-    }
+    var db = scope.ServiceProvider.GetRequiredService<ReservationContext>();
+    db.Database.EnsureCreated();
+    if (app.Environment.IsDevelopment())
+        db.Seed();
 }
 
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+}
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();
+connection.Close();
