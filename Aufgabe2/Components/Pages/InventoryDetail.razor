@@ -1,0 +1,90 @@
+@page "/inventory/{Id:int}"
+@inject InventoryService InventoryService
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<PageTitle>Inventory item @Id</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+
+    @* --- Breadcrumb + header -------------------------------------------- *@
+    <RadzenStack Gap="0.75rem">
+        <RadzenButton Icon="arrow_back" Variant="Variant.Text" Text="Back to overview"
+                      ButtonStyle="ButtonStyle.Secondary" class="rz-p-0"
+                      Click="@(() => Navigation.NavigateTo("/"))" />
+        <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1" class="page-header rz-m-0">
+            @(_item?.ItemName ?? $"Item {Id}")
+        </RadzenText>
+    </RadzenStack>
+
+    @if (_loading)
+    {
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    }
+    else if (_item is null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" AllowClose="false">
+            No inventory item with id @Id exists.
+        </RadzenAlert>
+    }
+    else
+    {
+        <RadzenCard>
+            <RadzenStack Gap="1.5rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                             JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                        <span class="stat-icon" style="background:color-mix(in srgb, var(--rz-primary) 14%, transparent); color:var(--rz-primary)">
+                            <RadzenIcon Icon="inventory_2" />
+                        </span>
+                        <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">@_item.ItemName</RadzenText>
+                    </RadzenStack>
+                    <RadzenBadge BadgeStyle="@(_item.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)"
+                                 Variant="Variant.Flat" IsPill="true"
+                                 Text="@(_item.IsAvailable ? "Available" : "Unavailable")" />
+                </RadzenStack>
+
+                <RadzenRow RowGap="1.5rem">
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <p class="field-label">Id</p>
+                        <p class="field-value">@_item.Id</p>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <p class="field-label">Serial number</p>
+                        <p class="field-value">@_item.SerialNumber</p>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <p class="field-label">Category</p>
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@_item.Category.Text" />
+                    </RadzenColumn>
+                </RadzenRow>
+            </RadzenStack>
+        </RadzenCard>
+    }
+</RadzenStack>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private InventoryItem? _item;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        try
+        {
+            _item = await InventoryService.InventoryItems
+                .Include(item => item.Category)
+                .FirstOrDefaultAsync(item => item.Id == Id);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Could not load item", ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
