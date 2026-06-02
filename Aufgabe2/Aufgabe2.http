@@ -1,0 +1,77 @@
+@host = http://localhost:5080
+
+### Kriterium: GET /inventoryItems liefert HTTP 200 (ohne Reservierungen).
+GET {{host}}/inventoryItems?withReservations=false
+
+### Kriterium: GET /inventoryItems liefert die Reservierungen bei withReservations=true.
+GET {{host}}/inventoryItems?withReservations=true
+
+### Kriterium: GET /inventoryItems/{id} liefert HTTP 200 mit den korrekten Daten.
+GET {{host}}/inventoryItems/1
+
+### Error Path: GET /inventoryItems/{id} liefert HTTP 404 bei unbekannter ID.
+GET {{host}}/inventoryItems/9999
+
+### Kriterium: POST /inventoryItems legt mit gueltigen Daten den Datensatz an (HTTP 201).
+# Erwartet: 201 Created, Location-Header und Payload { "id": ... }.
+POST {{host}}/inventoryItems
+Content-Type: application/json
+
+{
+  "serialNumber": "SN-0001",
+  "itemName": "ThinkPad X1",
+  "categoryId": 1,
+  "isAvailable": true
+}
+
+### Kriterium: POST /inventoryItems liefert HTTP 400 bei ungueltigen Werten.
+# serialNumber ist leer, categoryId ist kleiner als 1.
+POST {{host}}/inventoryItems
+Content-Type: application/json
+
+{
+  "serialNumber": "",
+  "itemName": "Defektes Geraet",
+  "categoryId": 0,
+  "isAvailable": true
+}
+
+### Kriterium: POST /inventoryItems liefert HTTP 400 bei nicht vorhandener CategoryId.
+POST {{host}}/inventoryItems
+Content-Type: application/json
+
+{
+  "serialNumber": "SN-0002",
+  "itemName": "USB-C Adapter",
+  "categoryId": 9999,
+  "isAvailable": true
+}
+
+### Kriterium: PATCH /inventoryItems/{id}/available liefert HTTP 204 im Erfolgsfall.
+# Routing-ID und id im Command Object stimmen ueberein.
+PATCH {{host}}/inventoryItems/1/available
+Content-Type: application/json
+
+{
+  "id": 1,
+  "isAvailable": false
+}
+
+### Kriterium: PATCH /inventoryItems/{id}/available liefert HTTP 400 bei ungleichen IDs.
+# Routing-ID (1) und id im Command Object (2) stimmen nicht ueberein.
+PATCH {{host}}/inventoryItems/1/available
+Content-Type: application/json
+
+{
+  "id": 2,
+  "isAvailable": false
+}
+
+### Error Path: PATCH /inventoryItems/{id}/available liefert HTTP 404 bei unbekannter ID.
+PATCH {{host}}/inventoryItems/9999/available
+Content-Type: application/json
+
+{
+  "id": 9999,
+  "isAvailable": false
+}
