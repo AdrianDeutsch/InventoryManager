@@ -1,0 +1,133 @@
+/* ============================================================================
+   Inventory Manager – branding layer on top of the Radzen Material theme.
+   Only design tokens and component polish live here; layout stays in markup.
+   ============================================================================ */
+
+:root {
+    --app-brand: var(--rz-primary, #2563eb);
+    --app-radius: 14px;
+    --app-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
+    --app-shadow-md: 0 4px 6px -1px rgba(16, 24, 40, .08), 0 2px 4px -2px rgba(16, 24, 40, .06);
+    --app-bg: #f6f7fb;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--app-bg);
+}
+
+/* --- App shell ----------------------------------------------------------- */
+.app-header {
+    background: #ffffff;
+    border-bottom: 1px solid var(--rz-border, #e5e7eb);
+    box-shadow: var(--app-shadow);
+}
+
+.app-brand {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.app-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--app-brand), color-mix(in srgb, var(--app-brand) 60%, #7c3aed));
+    color: #fff;
+}
+
+.rz-sidebar {
+    border-right: 1px solid var(--rz-border, #e5e7eb);
+    background: #ffffff;
+}
+
+/* Keep page content readable on wide screens. */
+.page-container {
+    max-width: 1180px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* --- Page header --------------------------------------------------------- */
+.page-header h1 {
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.page-subtitle {
+    color: var(--rz-text-secondary-color, #6b7280);
+}
+
+/* --- Stat cards ---------------------------------------------------------- */
+.stat-card {
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow);
+    border: 1px solid var(--rz-border, #eef0f4);
+    transition: box-shadow .18s ease, transform .18s ease;
+}
+
+.stat-card:hover {
+    box-shadow: var(--app-shadow-md);
+    transform: translateY(-1px);
+}
+
+.stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    flex: 0 0 auto;
+}
+
+.stat-icon .rz-icon {
+    font-size: 1.5rem;
+}
+
+/* --- Cards & grid -------------------------------------------------------- */
+.rz-card {
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow);
+    border: 1px solid var(--rz-border, #eef0f4);
+}
+
+.rz-datatable,
+.rz-data-grid {
+    border-radius: var(--app-radius);
+    overflow: hidden;
+}
+
+.rz-grid-table thead th {
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--rz-text-secondary-color, #6b7280);
+}
+
+/* Detail page field labels */
+.field-label {
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--rz-text-secondary-color, #6b7280);
+    margin: 0 0 .15rem;
+}
+
+.field-value {
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Small helper text under form inputs */
+.form-hint {
+    color: var(--rz-text-secondary-color, #6b7280);
+    font-size: .8rem;
+    margin: .15rem 0 0;
+}

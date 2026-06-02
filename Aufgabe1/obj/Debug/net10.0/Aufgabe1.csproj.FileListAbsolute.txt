@@ -1,0 +1,16 @@
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/bin/Debug/net10.0/Aufgabe1.deps.json
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/bin/Debug/net10.0/Aufgabe1.dll
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/bin/Debug/net10.0/Aufgabe1.pdb
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/bin/Debug/net10.0/BaseModel.dll
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/bin/Debug/net10.0/BaseModel.pdb
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.csproj.AssemblyReference.cache
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.GeneratedMSBuildEditorConfig.editorconfig
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.AssemblyInfoInputs.cache
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.AssemblyInfo.cs
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.csproj.CoreCompileInputs.cache
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.sourcelink.json
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.csproj.Up2Date
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.dll
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/refint/Aufgabe1.dll
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/Aufgabe1.pdb
+/Users/adriandeutsch/Desktop/Github/InventoryManager/Aufgabe1/obj/Debug/net10.0/ref/Aufgabe1.dll
