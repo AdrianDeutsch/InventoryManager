@@ -61,7 +61,7 @@ Die Solution ist in drei produktive Projekte plus ein Test-Projekt gegliedert (S
 Concerns):
 
 ```
-Plf6xaif.sln
+InventoryManager.sln
 ├── BaseModel/          # Domänenmodell + EF-Core-DbContext (ReservationContext)
 ├── Application/        # Service-Schicht: InventoryService & ReservationService + Commands/Exceptions
 ├── Application.Test/   # Eigenständige Unit-Tests für InventoryService
@@ -175,7 +175,7 @@ dotnet test
 ### Komplette Solution bauen
 
 ```bash
-dotnet build Plf6xaif.sln
+dotnet build InventoryManager.sln
 ```
 
 ---
