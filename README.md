@@ -26,6 +26,20 @@ direkt konsumierte Service-Architektur mit moderner Radzen-Oberfläche umgestell
 
 ---
 
+## 🖼️ Screenshots
+
+| Übersicht | Reservierungen |
+| --- | --- |
+| [![Übersicht](docs/screenshots/01-overview.png)](docs/screenshots/01-overview.png) | [![Reservierungen](docs/screenshots/02-overview-reservations.png)](docs/screenshots/02-overview-reservations.png) |
+| **Sortier- und durchsuchbares Grid** mit KPI-Kacheln und Verfügbarkeits-Switch je Zeile. | **Aufklappbare Detailzeile** mit den Reservierungen eines Items (Person, Ausleih-/Rückgabedatum, Status). |
+
+| Detailansicht | Item anlegen |
+| --- | --- |
+| [![Detailansicht](docs/screenshots/03-detail.png)](docs/screenshots/03-detail.png) | [![Anlegen](docs/screenshots/04-create.png)](docs/screenshots/04-create.png) |
+| **Stammdaten** eines Items in einer Card inkl. Verfügbarkeits-Badge. | **Validiertes Formular** zum Anlegen eines neuen Inventar-Items. |
+
+---
+
 ## ✨ Features
 
 | Bereich | Funktion |
@@ -43,33 +57,32 @@ direkt konsumierte Service-Architektur mit moderner Radzen-Oberfläche umgestell
 
 ## 🧱 Architektur
 
-Die Solution ist in vier produktive Projekte plus zwei Test-Projekte gegliedert (Separation of
+Die Solution ist in drei produktive Projekte plus ein Test-Projekt gegliedert (Separation of
 Concerns):
 
 ```
 Plf6xaif.sln
-├── BaseModel/            # Domänenmodell + EF-Core-DbContext (ReservationContext)
-├── Aufgabe1/             # ReservationService (Auswertungs-/Reservierungslogik)
-├── Aufgabe1.Test/        # Vorgegebene Master-Tests für Aufgabe1
-├── Aufgabe2/             # ⭐ Blazor-Server-App + InventoryService
-└── Aufgabe2.Test/        # Eigenständige Unit-Tests für InventoryService
+├── BaseModel/          # Domänenmodell + EF-Core-DbContext (ReservationContext)
+├── Application/        # Service-Schicht: InventoryService & ReservationService + Commands/Exceptions
+├── Application.Test/   # Eigenständige Unit-Tests für InventoryService
+└── WebApp/             # ⭐ Blazor-Server-App (UI)
 ```
 
-### Schichten in `Aufgabe2`
+### Schichten
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Blazor Components (Razor)                     │
+│  WebApp – Blazor Components (Razor)            │
 │  Overview · Detail · Create · Layout           │
 └───────────────┬────────────────────────────────┘
                 │  Dependency Injection (direkt)
 ┌───────────────▼────────────────────────────────┐
-│  Service-Schicht                               │
+│  Application – Service-Schicht                 │
 │  InventoryService  →  Commands / Exceptions    │
 └───────────────┬────────────────────────────────┘
                 │  EF Core
 ┌───────────────▼────────────────────────────────┐
-│  ReservationContext  →  SQLite (in-memory)     │
+│  BaseModel – ReservationContext → SQLite (mem) │
 └────────────────────────────────────────────────┘
 ```
 
@@ -122,7 +135,7 @@ camelCase, `string`-Defaultlänge 255, `Restrict`-Löschverhalten). Beim Start i
 ## ✅ Validierung & Fehlerbehandlung
 
 * **Validierung** erfolgt vor jedem Service-Aufruf über `EditForm` + `DataAnnotationsValidator`
-  auf Basis von [`InventoryItemFormModel`](Aufgabe2/ViewModels/InventoryItemFormModel.cs):
+  auf Basis von [`InventoryItemFormModel`](WebApp/ViewModels/InventoryItemFormModel.cs):
   Pflichtfelder, Längenbegrenzung **1–255 Zeichen** und verpflichtende Kategorieauswahl.
   Es gibt **eine einzige Quelle der Wahrheit** (Data Annotations) – keine doppelten Validatoren.
 * **Fehlerbehandlung:** Jeder Service-Aufruf ist gegen `InventoryServiceException` abgesichert
@@ -143,7 +156,7 @@ camelCase, `string`-Defaultlänge 255, `Restrict`-Löschverhalten). Beim Start i
 
 ```bash
 # Aus dem Repository-Wurzelverzeichnis
-dotnet run --project Aufgabe2
+dotnet run --project WebApp
 ```
 
 Die App startet standardmäßig unter **http://localhost:5080**. In der Umgebung `Development`
@@ -152,8 +165,8 @@ Die App startet standardmäßig unter **http://localhost:5080**. In der Umgebung
 ### Tests ausführen
 
 ```bash
-# Nur die Service-Tests von Aufgabe2
-dotnet test Aufgabe2.Test
+# Nur die Service-Tests
+dotnet test Application.Test
 
 # Alle Tests der Solution
 dotnet test
@@ -169,7 +182,7 @@ dotnet build Plf6xaif.sln
 
 ## 🧪 Tests
 
-Die Test-Suite in `Aufgabe2.Test` ist **vollständig eigenständig** und deckt die zentrale
+Die Test-Suite in `Application.Test` ist **vollständig eigenständig** und deckt die zentrale
 Geschäftslogik des `InventoryService` ab – Erfolgs- **und** Fehlerpfade.
 
 | Testklasse | Abgedeckt |
@@ -203,26 +216,35 @@ Bestanden!  erfolgreich: 9, fehlgeschlagen: 0
 
 ---
 
-## 📁 Projektstruktur (Auszug `Aufgabe2`)
+## 📁 Projektstruktur
 
 ```
-Aufgabe2/
-├── Program.cs                       # Host-Setup: Blazor, Radzen, EF, Seeding
-├── Components/
-│   ├── App.razor                    # Root-Dokument inkl. Radzen-Assets
-│   ├── Routes.razor                 # Router
-│   ├── _Imports.razor               # Globale Usings
-│   ├── Layout/
-│   │   └── MainLayout.razor         # Header/Body + RadzenComponents (Overlays)
-│   └── Pages/
-│       ├── InventoryOverview.razor  # Liste, Reservierungen, Verfügbarkeit
-│       ├── InventoryDetail.razor    # Stammdaten
-│       ├── InventoryCreate.razor    # Anlegen-Formular
-│       └── Error.razor              # Fehlerseite (Produktion)
-├── ViewModels/
-│   └── InventoryItemFormModel.cs    # Form-Modell mit Data Annotations
-├── Commands/                        # AddInventoryItemCmd, UpdateAvailabilityCmd
-└── Services/                        # InventoryService + Domänen-Exceptions
+InventoryManager/
+├── BaseModel/
+│   ├── Model/                        # InventoryItem, Category, Reservation, Person, Status, Staff
+│   └── Infrastructure/
+│       └── ReservationContext.cs     # EF-Core-DbContext + Seed()
+├── Application/
+│   ├── Commands/                     # AddInventoryItemCmd, UpdateAvailabilityCmd
+│   └── Services/                     # InventoryService, ReservationService + Domänen-Exceptions
+├── Application.Test/                 # xUnit-Tests für InventoryService
+└── WebApp/                           # ⭐ Blazor-Server-App
+    ├── Program.cs                    # Host-Setup: Blazor, Radzen, EF, Seeding
+    ├── Components/
+    │   ├── App.razor                 # Root-Dokument inkl. Radzen-Assets
+    │   ├── Routes.razor              # Router
+    │   ├── _Imports.razor            # Globale Usings
+    │   ├── Layout/
+    │   │   └── MainLayout.razor      # Header/Body + RadzenComponents (Overlays)
+    │   ├── Shared/
+    │   │   └── StatCard.razor        # KPI-Kachel der Übersicht
+    │   └── Pages/
+    │       ├── InventoryOverview.razor  # Liste, Reservierungen, Verfügbarkeit
+    │       ├── InventoryDetail.razor    # Stammdaten
+    │       ├── InventoryCreate.razor    # Anlegen-Formular
+    │       └── Error.razor              # Fehlerseite (Produktion)
+    └── ViewModels/
+        └── InventoryItemFormModel.cs    # Form-Modell mit Data Annotations
 ```
 
 ---
@@ -235,3 +257,4 @@ Aufgabe2/
   Operation) der nächste Ausbauschritt.
 * `InventoryService` ist als vorgegebene Komponente unverändert übernommen; die App baut die
   gesamte UX rund um diese Service-Oberfläche auf.
+</content>
