@@ -7,7 +7,7 @@ dotnet restore --no-cache
 IF ERRORLEVEL 1 GOTO error
 dotnet build
 IF ERRORLEVEL 1 GOTO error
-start Plf6xaif.sln
+start InventoryManager.sln
 GOTO end
 
 :error
