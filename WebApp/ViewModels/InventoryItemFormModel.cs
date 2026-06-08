@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Aufgabe2.Commands;
+using Application.Commands;
 
-namespace Aufgabe2.ViewModels;
+namespace WebApp.ViewModels;
 
 /// <summary>
 /// Editable form model backing the "create inventory item" page.

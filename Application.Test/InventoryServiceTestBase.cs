@@ -1,10 +1,10 @@
-using Aufgabe2.Services;
+using Application.Services;
 using BaseModel.Infrastructure;
 using BaseModel.Model;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-namespace Aufgabe2.Test;
+namespace Application.Test;
 
 /// <summary>
 /// Base class for <see cref="InventoryService"/> tests.

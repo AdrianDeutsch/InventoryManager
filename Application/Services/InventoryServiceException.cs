@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aufgabe2.Services;
+namespace Application.Services;
 
 [Serializable]
 public class InventoryServiceException : Exception

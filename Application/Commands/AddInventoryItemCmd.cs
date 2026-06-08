@@ -1,6 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-namespace Aufgabe2.Commands;
+namespace Application.Commands;
 
 // TODO: Add validation
 public record AddInventoryItemCmd(

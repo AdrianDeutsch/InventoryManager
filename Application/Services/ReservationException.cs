@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Aufgabe1;
+namespace Application.Services;
 
 [Serializable]
 public class ReservationException : Exception

@@ -1,4 +1,4 @@
-namespace Aufgabe2.Commands;
+namespace Application.Commands;
 
 public record UpdateAvailabilityCmd(
     int Id,

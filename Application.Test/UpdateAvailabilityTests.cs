@@ -1,8 +1,8 @@
-using Aufgabe2.Commands;
-using Aufgabe2.Services;
+using Application.Commands;
+using Application.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace Aufgabe2.Test;
+namespace Application.Test;
 
 /// <summary>
 /// Tests for <see cref="InventoryService.UpdateAvailability"/> covering a successful toggle and

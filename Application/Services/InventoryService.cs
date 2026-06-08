@@ -9,9 +9,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Aufgabe2.Commands;
+using Application.Commands;
 
-namespace Aufgabe2.Services;
+namespace Application.Services;
 
 public class InventoryService(ReservationContext db)
 {

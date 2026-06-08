@@ -1,5 +1,5 @@
-using Aufgabe2.Components;
-using Aufgabe2.Services;
+using WebApp.Components;
+using Application.Services;
 using BaseModel.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;

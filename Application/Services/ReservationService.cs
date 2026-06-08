@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Aufgabe1;
+namespace Application.Services;
 
 public record CategoryWithCount(string Text, int Count);
 

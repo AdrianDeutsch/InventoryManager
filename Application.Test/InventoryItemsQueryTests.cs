@@ -1,7 +1,7 @@
 using BaseModel.Model;
 using Microsoft.EntityFrameworkCore;
 
-namespace Aufgabe2.Test;
+namespace Application.Test;
 
 /// <summary>
 /// Tests for the read-only <c>InventoryService.InventoryItems</c> query surface that the
