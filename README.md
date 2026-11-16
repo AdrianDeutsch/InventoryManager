@@ -1,260 +1,293 @@
 <div align="center">
 
-# 📦 Inventory Manager
+# Inventory Manager
 
-**Ein Entleihsystem für Inventar-Items, gebaut als interaktive Blazor-Server-App mit Radzen.**
+**Entleihsystem für Inventar: Geräte ausgeben, zurücknehmen und sehen, wer was hat.**
+Blazor Server, EF Core und SQLite, mit Tests auf Service- und Browser-Ebene.
 
+[![CI](https://github.com/AdrianDeutsch/InventoryManager/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AdrianDeutsch/InventoryManager/actions/workflows/ci.yml)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
-![Blazor](https://img.shields.io/badge/Blazor-Server%20(Interactive)-512BD4?logo=blazor&logoColor=white)
+![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor&logoColor=white)
 ![Radzen](https://img.shields.io/badge/UI-Radzen.Blazor%2010.4-1f6feb)
 ![EF Core](https://img.shields.io/badge/EF%20Core-SQLite-003B57?logo=sqlite&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-xUnit%20·%209%20passing-brightgreen)
+![Playwright](https://img.shields.io/badge/E2E-Playwright-2EAD33?logo=playwright&logoColor=white)
 
 </div>
 
 ---
 
-## 🎯 Überblick
+## Überblick
 
-Der **Inventory Manager** verwaltet ausleihbare Inventar-Gegenstände (z. B. Notebooks, Adapter,
-Kabel) inklusive ihrer Reservierungen. Die Anwendung ist eine **Blazor-Server-App** im neuen
-*Blazor-Web-App*-Modell (`InteractiveServer`): Die UI-Komponenten greifen **direkt über Dependency
-Injection** auf die Service-Schicht zu – es gibt bewusst **keine HTTP-/REST-Zwischenschicht**.
+Der Inventory Manager verwaltet ausleihbare Gegenstände einer Schule (Notebooks, Adapter, Kabel,
+Beamer) und ihre Ausleihen. Mitarbeiter geben ein Gerät an eine Person aus, nehmen es wieder
+zurück und sehen jederzeit, was verfügbar, verliehen, überfällig oder gesperrt ist.
 
-Das Projekt entstand aus einer ursprünglich API-basierten Vorlage und wurde vollständig auf eine
-direkt konsumierte Service-Architektur mit moderner Radzen-Oberfläche umgestellt.
-
----
-
-## 🖼️ Screenshots
-
-| Übersicht | Reservierungen |
-| --- | --- |
-| [![Übersicht](docs/screenshots/01-overview.png)](docs/screenshots/01-overview.png) | [![Reservierungen](docs/screenshots/02-overview-reservations.png)](docs/screenshots/02-overview-reservations.png) |
-| **Sortier- und durchsuchbares Grid** mit KPI-Kacheln und Verfügbarkeits-Switch je Zeile. | **Aufklappbare Detailzeile** mit den Reservierungen eines Items (Person, Ausleih-/Rückgabedatum, Status). |
-
-| Detailansicht | Item anlegen |
-| --- | --- |
-| [![Detailansicht](docs/screenshots/03-detail.png)](docs/screenshots/03-detail.png) | [![Anlegen](docs/screenshots/04-create.png)](docs/screenshots/04-create.png) |
-| **Stammdaten** eines Items in einer Card inkl. Verfügbarkeits-Badge. | **Validiertes Formular** zum Anlegen eines neuen Inventar-Items. |
+Ausgangspunkt war eine Übungsvorlage mit Datenmodell und leeren Service-Methoden. Daraus ist
+eine vollständige Anwendung geworden: Die Ausleihe hat Geschäftsregeln, die auch bei
+gleichzeitigen Zugriffen halten, das Schema wird über Migrationen verwaltet, und jede Regel ist
+durch einen Test belegt.
 
 ---
 
-## ✨ Features
+## Screenshots
+
+| Übersicht | Ausleihen |
+| --- | --- |
+| [![Übersicht](docs/screenshots/01-overview.png)](docs/screenshots/01-overview.png) | [![Ausleihen](docs/screenshots/02-lend-dialog.png)](docs/screenshots/02-lend-dialog.png) |
+| Kennzahlen, Suche und Status je Gerät. Ausgeben und Zurücknehmen direkt aus der Liste. | Dialog mit Personensuche. Das Rückgabedatum ergibt sich aus der Leihfrist. |
+
+| Detailansicht | Offene Ausleihen |
+| --- | --- |
+| [![Detailansicht](docs/screenshots/03-detail.png)](docs/screenshots/03-detail.png) | [![Offene Ausleihen](docs/screenshots/04-open-loans.png)](docs/screenshots/04-open-loans.png) |
+| Stammdaten, aktuelle Ausleihe und die gesamte Leihhistorie eines Geräts. | Alles, was gerade außer Haus ist, die älteste Ausleihe zuerst, Überfälliges markiert. |
+
+| Auswertungen |
+| --- |
+| [![Auswertungen](docs/screenshots/05-reports.png)](docs/screenshots/05-reports.png) |
+| Geräte je Kategorie, Personen mit offenen Ausleihen, Geräte, die im gewählten Jahr nie verliehen wurden. |
+
+---
+
+## Funktionen
 
 | Bereich | Funktion |
 | --- | --- |
-| 📋 **Übersicht** | Alle Inventar-Items in einem sortier- und paginierbaren `RadzenDataGrid` |
-| 🔄 **Reservierungen** | Pro Item optional nachladbar und als aufklappbare Detailzeile dargestellt (Person, Ausleih-/Rückgabedatum, Status) |
-| 🟢 **Verfügbarkeit** | Direkt aus der Liste per Switch umschaltbar – mit optimistischem Update und Rollback bei Fehlern |
-| 🔍 **Detailansicht** | Stammdaten eines Items übersichtlich in einer Card inkl. Verfügbarkeits-Badge |
-| ➕ **Anlegen** | Formular mit clientseitiger Validierung (Pflichtfelder, 1–255 Zeichen, Kategorieauswahl) |
-| 🔔 **Feedback** | Erfolgs- und Fehlermeldungen über Radzen-Notifications |
-| 🛡️ **Robustheit** | Domänen-Exceptions führen nie zu Abstürzen, sondern zu verständlichem Nutzer-Feedback |
-| 🧪 **Tests** | Eigenständige xUnit-Suite für die gesamte Geschäftslogik der Service-Schicht |
+| Inventar | Liste mit Suche (Name, Seriennummer, Kategorie, Person), Sortierung und Paging |
+| Ausleihe | Gerät an eine Person ausgeben, auch rückwirkend; das Gerät ist danach für andere gesperrt |
+| Rückgabe | Gerät zurücknehmen, mit annehmendem Mitarbeiter und Zustand (in Ordnung oder beschädigt) |
+| Sperren | Gerät von Hand sperren und freigeben, etwa für eine Reparatur |
+| Überfällig | Ausleihen über der Leihfrist (Standard: 14 Tage, konfigurierbar) werden markiert und gezählt |
+| Historie | Leihhistorie je Gerät, in der Übersicht aufklappbar und auf der Detailseite |
+| Auswertungen | Geräte je Kategorie, Personen mit offenen Ausleihen, nie verliehene Geräte je Jahr |
+| Anlegen | Neues Gerät mit Formularprüfung; Seriennummern sind eindeutig |
 
 ---
 
-## 🧱 Architektur
+## Geschäftsregeln
 
-Die Solution ist in drei produktive Projekte plus ein Test-Projekt gegliedert (Separation of
-Concerns):
+Die Regeln stehen in der Service-Schicht. Wo es auf gleichzeitige Zugriffe ankommt, sichert
+zusätzlich die Datenbank ab.
+
+| Regel | Durchgesetzt in |
+| --- | --- |
+| Ein Gerät kann nur einmal gleichzeitig verliehen sein. | `ReservationService` und eindeutiger Teilindex auf offene Ausleihen |
+| Ein gesperrtes Gerät kann nicht verliehen werden. | `ReservationService` |
+| Ein verliehenes Gerät kann nicht freigegeben werden, bevor es zurück ist. | `InventoryService` |
+| Eine Ausleihe beginnt nicht in der Zukunft und nicht vor der letzten Rückgabe des Geräts. | `ReservationService` |
+| Eine Rückgabe liegt nicht vor dem Ausleihdatum und nicht in der Zukunft. | `ReservationService` |
+| Eine Ausleihe kann nur einmal zurückgegeben werden. | `Reservation.Return`, Concurrency-Token auf dem Rückgabedatum |
+| Ein beschädigt zurückgegebenes Gerät bleibt gesperrt, bis es jemand freigibt. | `ReservationService` |
+| Seriennummern sind eindeutig, unabhängig von Groß- und Kleinschreibung. | `InventoryService` (speichert in Großbuchstaben) und eindeutiger Index |
+| Personen und Geräte mit Ausleihen können nicht gelöscht werden. | Fremdschlüssel mit `Restrict` |
+
+**Gleichzeitige Zugriffe:** Verleihen zwei Mitarbeiter dasselbe Gerät im selben Moment, bestehen
+beide die Prüfung im Service. Der Teilindex (`UNIQUE … WHERE returnDate IS NULL`) lässt nur die
+erste Ausleihe durch; die zweite Person bekommt eine verständliche Meldung statt einer zweiten
+Ausleihe. Die Tests stellen genau diese Situation nach.
+
+---
+
+## Architektur
 
 ```
 InventoryManager.sln
-├── BaseModel/          # Domänenmodell + EF-Core-DbContext (ReservationContext)
-├── Application/        # Service-Schicht: InventoryService & ReservationService + Commands/Exceptions
-├── Application.Test/   # Eigenständige Unit-Tests für InventoryService
-└── WebApp/             # ⭐ Blazor-Server-App (UI)
+├── BaseModel/          Domänenmodell, DbContext, Migrationen, Demo-Daten
+├── Application/        Services, Commands, Read-Models, Leihfrist-Regeln
+├── WebApp/             Blazor-Server-Oberfläche (Radzen)
+├── Application.Test/   Service-Tests gegen echtes SQLite
+└── WebApp.E2ETest/     Browser-Tests mit Playwright
 ```
 
-### Schichten
-
-```
-┌──────────────────────────────────────────────┐
-│  WebApp – Blazor Components (Razor)            │
-│  Overview · Detail · Create · Layout           │
-└───────────────┬────────────────────────────────┘
-                │  Dependency Injection (direkt)
-┌───────────────▼────────────────────────────────┐
-│  Application – Service-Schicht                 │
-│  InventoryService  →  Commands / Exceptions    │
-└───────────────┬────────────────────────────────┘
-                │  EF Core
-┌───────────────▼────────────────────────────────┐
-│  BaseModel – ReservationContext → SQLite (mem) │
-└────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  UI["WebApp<br/>Razor-Komponenten, Dialoge"]
+  APP["Application<br/>InventoryService · ReservationService · LoanPolicy"]
+  DOM["BaseModel<br/>Entitäten · ReservationContext · Migrationen"]
+  DB[("SQLite")]
+  UI -- "Commands / Read-Models (über DI)" --> APP
+  APP -- "ein DbContext je Operation" --> DOM
+  DOM --> DB
 ```
 
-* **Keine REST-Schicht:** Komponenten konsumieren `InventoryService` ausschließlich über DI.
-* **CQRS-Anklänge:** Schreiboperationen laufen über Command-Records (`AddInventoryItemCmd`,
-  `UpdateAvailabilityCmd`); Lesezugriffe über die `IQueryable`-Oberfläche `InventoryItems`.
-* **Domänen-Exceptions:** `InventoryServiceException` (Basis) und das spezialisierte
-  `InventoryNotFoundException` trennen fachliche von technischen Fehlern.
+Entscheidungen und ihre Gründe:
+
+- **Keine REST-Schicht.** Die Komponenten rufen die Services direkt über Dependency Injection
+  auf. Bei Blazor Server läuft die Oberfläche ohnehin auf dem Server; eine HTTP-Schnittstelle
+  dazwischen brächte nur Serialisierung und eine zweite Fehlerquelle.
+- **`IDbContextFactory` statt eines Scoped-Contexts.** Ein DI-Scope lebt bei Blazor Server so
+  lange wie der Browser-Tab. Ein Context pro Scope würde über Minuten dieselben Entitäten
+  ausliefern und bei zwei überlappenden Klicks scheitern. Jede Service-Operation öffnet deshalb
+  ihren eigenen kurzlebigen Context.
+- **Schreiben und Lesen getrennt.** Änderungen laufen über Command-Records (`LendItemCmd`,
+  `ReturnItemCmd`, …), Abfragen liefern unveränderliche Read-Models. Die Oberfläche bekommt nie
+  eine EF-Entität in die Hand und formuliert keine Datenbankabfragen.
+- **Fachliche Fehler haben einen eigenen Typ.** Eine verletzte Regel wirft eine
+  `BusinessRuleException` mit einer Meldung für den Benutzer; die Oberfläche zeigt sie an.
+  Technische Fehler gehen mit allen Details ins Log, der Benutzer bekommt nur einen neutralen
+  Hinweis ([`TechnicalErrorNotifier.cs`](WebApp/Components/Shared/TechnicalErrorNotifier.cs)).
+- **Die Uhr ist austauschbar.** „Heute“ und „überfällig“ kommen aus `LoanPolicy` mit
+  injiziertem `TimeProvider`. Die Tests laufen mit festem Datum.
+- **Kein Prerendering.** Die Anwendung ist ein internes Werkzeug. Ohne Prerendering lädt jede
+  Seite ihre Daten einmal statt zweimal, und kein Button ist sichtbar, bevor er reagiert.
 
 ---
 
-## 🗂️ Domänenmodell
+## Domänenmodell
 
 ```
 Category 1───* InventoryItem 1───* Reservation *───1 Person
                                         │
-                                        ├──*───1 Status
-                                        └──*───1 Staff   (optional, „accepted by“)
+                                        └──*───0..1 Staff   (nimmt die Rückgabe an)
 ```
 
 | Entität | Kernfelder |
 | --- | --- |
-| `InventoryItem` | `SerialNumber`, `ItemName`, `Category`, `IsAvailable`, `Reservations` |
-| `Category` | `Text`, `InventoryItems` |
-| `Reservation` | `Person`, `InventoryItem`, `LoanDate`, `Status`, `ReturnDate?`, `AcceptedBy?` |
+| `InventoryItem` | `SerialNumber` (eindeutig), `ItemName`, `Category`, `IsAvailable` |
+| `Category` | `Text` |
+| `Reservation` | `Person`, `InventoryItem`, `LoanDate`, `ReturnDate?`, `Status`, `AcceptedBy?` |
 | `Person` | `FirstName`, `LastName`, `SchoolClass`, `Email`, `Phone` |
-| `Status` | `Text` (z. B. *Pending*, *Issued*, *Damaged return*) |
 | `Staff` | `FirstName`, `LastName` |
 
-Das Schema wird von `ReservationContext` per Convention konfiguriert (Tabellen-/Spaltennamen in
-camelCase, `string`-Defaultlänge 255, `Restrict`-Löschverhalten). Beim Start in der Umgebung
-`Development` wird die Datenbank über `Seed()` mit realistischen Beispieldaten (Bogus) befüllt.
+Der Status einer Ausleihe ist ein Enum (`Issued`, `Returned`, `DamagedReturn`) und wird als Text
+gespeichert. Er steuert Regeln im Code, deshalb liegt er nicht in einer Nachschlagetabelle.
+
+Im Code heißt die Ausleihe `Reservation`. Der Name stammt aus der Vorlage und ist geblieben,
+damit Entität, Tabelle und Service gleich heißen; in der Oberfläche steht durchgehend „Loan“.
 
 ---
 
-## 🖥️ Die Oberfläche
+## Tests
 
-| Route | Komponente | Beschreibung |
-| --- | --- | --- |
-| `/`, `/inventory` | `InventoryOverview.razor` | Liste aller Items, Reservierungen optional nachladen, Verfügbarkeit toggeln |
-| `/inventory/{id}` | `InventoryDetail.razor` | Stammdaten eines Items |
-| `/inventory/create` | `InventoryCreate.razor` | Neues Item anlegen (validiertes Formular) |
+| Ebene | Projekt | Tests | Wogegen |
+| --- | --- | --- | --- |
+| Service und Datenbank | `Application.Test` | 80 | echtes SQLite (in-memory), Schema aus den Migrationen |
+| Oberfläche | `WebApp.E2ETest` | 13 | die laufende Anwendung in Chromium (Playwright) |
 
-**Verwendete Radzen-Komponenten:** `RadzenDataGrid`, `RadzenSwitch`, `RadzenDropDown`,
-`RadzenCard`, `RadzenBadge`, `RadzenNotification`, `RadzenLayout/Header/Body`, `RadzenButton`,
-`RadzenFormField`, `RadzenAlert` u. a.
+**Service-Tests.** Die Services laufen gegen eine echte SQLite-Datenbank statt gegen einen
+gemockten `DbContext`. Abfrage-Übersetzung, eindeutige Indizes und Concurrency-Token tragen einen
+Teil der Regeln, und ein Mock würde genau diese Teile nicht ausführen. Jeder Test hat seine
+eigene Datenbank und ein festes Datum.
+
+- *Regeln:* jeder Eintrag der Tabelle oben, mit erlaubtem und abgelehntem Fall und den
+  Grenzwerten (Rückgabe am Ausleihtag, fällig heute, 255 Zeichen).
+- *Wettläufe:* Ein Interceptor führt direkt vor dem `SaveChanges` des Service den Schreibzugriff
+  eines „zweiten Benutzers“ aus. So ist der Wettlauf bei jedem Lauf derselbe
+  ([`ServiceTestBase.cs`](Application.Test/ServiceTestBase.cs)).
+- *Datenbank-Garantien:* was die Datenbank auch ohne Service verhindert
+  ([`DatabaseGuaranteeTests.cs`](Application.Test/DatabaseGuaranteeTests.cs)). Dazu gehört ein
+  Test, der fehlschlägt, wenn das Modell ohne neue Migration geändert wurde.
+- *Demo-Daten:* Die Startdaten müssen dieselben Regeln einhalten wie echte Daten.
+
+**Browser-Tests.** Die Tests starten die Anwendung selbst auf einem freien Port, mit einer
+eigenen Wegwerf-Datenbank, und bedienen sie über Page Objects: Gerät anlegen, verleihen,
+zurücknehmen, beschädigte Rückgabe, Suche, Leihhistorie, Formularprüfung, Auswertungen. Schlägt ein Test fehl,
+liegen Screenshot und Playwright-Trace in `WebApp.E2ETest/bin/<Konfiguration>/net10.0/artifacts/`.
+
+**Abdeckung.** Die CI bricht ab, wenn die Zeilenabdeckung von Domänenmodell und Service-Schicht
+unter 90 % fällt. Aktuell sind es 98 %.
 
 ---
 
-## ✅ Validierung & Fehlerbehandlung
+## Schnellstart
 
-* **Validierung** erfolgt vor jedem Service-Aufruf über `EditForm` + `DataAnnotationsValidator`
-  auf Basis von [`InventoryItemFormModel`](WebApp/ViewModels/InventoryItemFormModel.cs):
-  Pflichtfelder, Längenbegrenzung **1–255 Zeichen** und verpflichtende Kategorieauswahl.
-  Es gibt **eine einzige Quelle der Wahrheit** (Data Annotations) – keine doppelten Validatoren.
-* **Fehlerbehandlung:** Jeder Service-Aufruf ist gegen `InventoryServiceException` abgesichert
-  (fängt durch Vererbung auch `InventoryNotFoundException`). Der Nutzer erhält eine klare
-  Notification; beim Verfügbarkeits-Toggle wird der optimistische Wert bei Fehler
-  **zurückgerollt**, sodass UI und Datenbank konsistent bleiben.
-
----
-
-## 🚀 Schnellstart
-
-### Voraussetzungen
-
-* [.NET SDK 10.0](https://dotnet.microsoft.com/download) oder neuer
-* Paketquelle `nuget.org` (Standard)
+Voraussetzung: [.NET SDK 10](https://dotnet.microsoft.com/download).
 
 ### Anwendung starten
 
 ```bash
-# Aus dem Repository-Wurzelverzeichnis
 dotnet run --project WebApp
 ```
 
-Die App startet standardmäßig unter **http://localhost:5080**. In der Umgebung `Development`
-(Default des Start-Profils) werden automatisch Beispieldaten geseedet.
+Die Anwendung läuft unter **http://localhost:5080**. Beim ersten Start entsteht die Datenbank
+`WebApp/inventory.db` mit Demo-Daten: 14 Geräte, 20 Personen und eine Leihhistorie relativ zum
+heutigen Datum, darunter offene und überfällige Ausleihen. Zum Zurücksetzen die Datei löschen.
 
 ### Tests ausführen
 
 ```bash
-# Nur die Service-Tests
+# Service-Tests
 dotnet test Application.Test
 
-# Alle Tests der Solution
-dotnet test
+# Browser-Tests: einmalig den Browser installieren, dann ausführen
+dotnet tool install --global Microsoft.Playwright.CLI
+dotnet build WebApp.E2ETest
+cd WebApp.E2ETest && playwright install chromium && cd ..
+dotnet test WebApp.E2ETest
 ```
 
-### Komplette Solution bauen
+`HEADLESS=false dotnet test WebApp.E2ETest` zeigt den Browser während der Tests.
+
+### Schema ändern
 
 ```bash
-dotnet build InventoryManager.sln
+dotnet tool restore
+dotnet ef migrations add <Name> --project BaseModel
 ```
+
+Die Anwendung wendet offene Migrationen beim Start an.
 
 ---
 
-## 🧪 Tests
+## Konfiguration
 
-Die Test-Suite in `Application.Test` ist **vollständig eigenständig** und deckt die zentrale
-Geschäftslogik des `InventoryService` ab – Erfolgs- **und** Fehlerpfade.
+[`WebApp/appsettings.json`](WebApp/appsettings.json):
 
-| Testklasse | Abgedeckt |
-| --- | --- |
-| `AddInventoryItemTests` | Persistenz + Kategorie-Verknüpfung; `InventoryServiceException` bei unbekannter Kategorie; kein Teil-Insert im Fehlerfall |
-| `UpdateAvailabilityTests` | Toggeln in beide Richtungen + Persistenz; `InventoryNotFoundException` bei unbekannter Id |
-| `InventoryItemsQueryTests` | Vollständige Liste; Eager Loading von Reservierungen inkl. Person; leere Reservierungs-Collection |
+| Schlüssel | Standard | Bedeutung |
+| --- | --- | --- |
+| `ConnectionStrings:Default` | `Data Source=inventory.db` | SQLite-Datei, relativ zum Projektordner der WebApp |
+| `Loans:MaxLoanDays` | `14` | Leihfrist in Tagen; danach gilt eine Ausleihe als überfällig |
+| `DemoData:SeedOnEmptyDatabase` | `true` | Leere Datenbank beim Start mit Demo-Daten füllen |
 
-**Vorgehen:** xUnit mit echter **In-Memory-SQLite-Datenbank** statt eines DbContext-Mocks.
-Der Service hängt an realer EF-Core-Query-Translation, Change-Tracking und `SaveChanges`-Semantik,
-die ein Mock nicht originalgetreu abbilden kann. Eine geteilte, offen gehaltene Connection lässt
-die In-Memory-DB über mehrere kurzlebige Contexts hinweg bestehen (einer zum Agieren, ein frischer
-zum Verifizieren der Persistenz – unabhängig vom Change-Tracker). Alle Tests folgen dem
-**Arrange-Act-Assert**-Muster.
-
-```
-Bestanden!  erfolgreich: 9, fehlgeschlagen: 0
-```
+`/healthz` meldet, ob die Anwendung läuft.
 
 ---
 
-## 🛠️ Tech-Stack
+## CI
 
-| Kategorie | Technologie |
-| --- | --- |
-| Framework | .NET 10 |
-| UI | Blazor Server (InteractiveServer), Radzen.Blazor 10.4 |
-| Persistenz | EF Core 10 + SQLite (in-memory) |
-| Tests | xUnit, Microsoft.NET.Test.Sdk, coverlet |
-| Beispieldaten | Bogus, CsvHelper |
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) läuft bei jedem Push auf `main` und bei
+jedem Pull Request, von schnell nach langsam: Build (Warnungen sind Fehler), Service-Tests, Abdeckungsgrenze,
+Browser-Tests. Screenshots und Traces fehlgeschlagener Browser-Tests werden als Artefakt
+aufbewahrt.
 
 ---
 
-## 📁 Projektstruktur
+## Projektstruktur
 
 ```
 InventoryManager/
 ├── BaseModel/
-│   ├── Model/                        # InventoryItem, Category, Reservation, Person, Status, Staff
+│   ├── Model/                         InventoryItem, Category, Reservation, ReservationStatus, Person, Staff
 │   └── Infrastructure/
-│       └── ReservationContext.cs     # EF-Core-DbContext + Seed()
+│       ├── ReservationContext.cs      Mapping, Indizes, Concurrency-Token
+│       ├── Migrations/                EF-Core-Migrationen
+│       └── DemoDataSeeder.cs          Startdaten (deterministisch, relativ zum Datum)
 ├── Application/
-│   ├── Commands/                     # AddInventoryItemCmd, UpdateAvailabilityCmd
-│   └── Services/                     # InventoryService, ReservationService + Domänen-Exceptions
-├── Application.Test/                 # xUnit-Tests für InventoryService
-└── WebApp/                           # ⭐ Blazor-Server-App
-    ├── Program.cs                    # Host-Setup: Blazor, Radzen, EF, Seeding
-    ├── Components/
-    │   ├── App.razor                 # Root-Dokument inkl. Radzen-Assets
-    │   ├── Routes.razor              # Router
-    │   ├── _Imports.razor            # Globale Usings
-    │   ├── Layout/
-    │   │   └── MainLayout.razor      # Header/Body + RadzenComponents (Overlays)
-    │   ├── Shared/
-    │   │   └── StatCard.razor        # KPI-Kachel der Übersicht
-    │   └── Pages/
-    │       ├── InventoryOverview.razor  # Liste, Reservierungen, Verfügbarkeit
-    │       ├── InventoryDetail.razor    # Stammdaten
-    │       ├── InventoryCreate.razor    # Anlegen-Formular
-    │       └── Error.razor              # Fehlerseite (Produktion)
-    └── ViewModels/
-        └── InventoryItemFormModel.cs    # Form-Modell mit Data Annotations
+│   ├── Commands/                      AddInventoryItemCmd, UpdateAvailabilityCmd, LendItemCmd, ReturnItemCmd
+│   ├── ReadModels/                    Read-Models und gemeinsame Abfragen
+│   └── Services/                      InventoryService, ReservationService, LoanPolicy, Exceptions
+├── Application.Test/                  Service-, Datenbank- und Seed-Tests (xUnit)
+├── WebApp/
+│   ├── Program.cs                     Host: Blazor, Radzen, DbContextFactory, Migration, Seed
+│   └── Components/
+│       ├── Pages/                     Übersicht, Detail, Anlegen, Offene Ausleihen, Auswertungen
+│       ├── Shared/                    Dialoge (Ausleihen, Zurücknehmen), Status-Badge, Historie, Fehlermeldung
+│       └── Layout/
+├── WebApp.E2ETest/
+│   ├── AppFixture.cs                  startet Anwendung und Browser
+│   ├── Pages/                         Page Objects
+│   └── *Tests.cs
+└── .github/workflows/ci.yml
 ```
 
 ---
 
-## 📝 Hinweise & Einschränkungen
+## Grenzen
 
-* Die Datenbank läuft als **SQLite `:memory:`** über eine beim Start geöffnete, gemeinsame
-  Connection. Daten bestehen daher nur für die Laufzeit des Prozesses. Für echten Mehrbenutzer-
-  Betrieb wäre eine dateibasierte DB in Kombination mit `IDbContextFactory` (ein Context pro
-  Operation) der nächste Ausbauschritt.
-* `InventoryService` ist als vorgegebene Komponente unverändert übernommen; die App baut die
-  gesamte UX rund um diese Service-Oberfläche auf.
-</content>
+- Keine Anmeldung und keine Rollen: Jeder mit Zugriff auf die Anwendung darf alles.
+- Personen, Mitarbeiter und Kategorien kommen aus den Demo-Daten und sind nicht über die
+  Oberfläche pflegbar.
+- SQLite genügt für einen Standort. Für mehrere Server wäre ein Datenbankserver nötig. An
+  SQLite gebunden sind dabei die Migrationen und die Erkennung des Fehlercodes für verletzte
+  Eindeutigkeit ([`DbUpdateExceptionExtensions.cs`](BaseModel/Infrastructure/DbUpdateExceptionExtensions.cs)),
+  nicht die Regeln in den Services.
+- Die Oberfläche ist englisch.
