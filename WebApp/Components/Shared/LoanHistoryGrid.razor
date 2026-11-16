@@ -1,0 +1,45 @@
+@* Loan history of one item, newest loan first. Used on the detail page and in the overview. *@
+<RadzenDataGrid Data="@Entries" TItem="LoanHistoryEntry" GridLines="DataGridGridLines.Horizontal"
+                EmptyText="This item has never been lent." data-test="loan-history">
+    <Columns>
+        <RadzenDataGridColumn TItem="LoanHistoryEntry" Title="Person">
+            <Template Context="entry">
+                @entry.PersonName <span class="status-detail">· @entry.SchoolClass</span>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="LoanHistoryEntry" Title="Lent on" Width="130px">
+            <Template Context="entry">@Format.Date(entry.LoanDate)</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="LoanHistoryEntry" Title="Returned on" Width="130px">
+            <Template Context="entry">@Format.Date(entry.ReturnDate)</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="LoanHistoryEntry" Title="Taken back by" Width="170px">
+            <Template Context="entry">@(entry.AcceptedBy ?? "–")</Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="LoanHistoryEntry" Title="Status" Width="150px">
+            <Template Context="entry">
+                <RadzenBadge BadgeStyle="@StyleOf(entry.Status)" Variant="Variant.Flat" IsPill="true" Text="@TextOf(entry.Status)" />
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LoanHistoryEntry> Entries { get; set; } = [];
+
+    private static string TextOf(ReservationStatus status) => status switch
+    {
+        ReservationStatus.Issued => "On loan",
+        ReservationStatus.Returned => "Returned",
+        ReservationStatus.DamagedReturn => "Returned damaged",
+        _ => status.ToString(),
+    };
+
+    private static BadgeStyle StyleOf(ReservationStatus status) => status switch
+    {
+        ReservationStatus.Issued => BadgeStyle.Info,
+        ReservationStatus.Returned => BadgeStyle.Success,
+        ReservationStatus.DamagedReturn => BadgeStyle.Danger,
+        _ => BadgeStyle.Light,
+    };
+}

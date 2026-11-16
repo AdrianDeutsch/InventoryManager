@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 
 namespace BaseModel.Model;
 
@@ -21,7 +20,6 @@ public class InventoryItem
     public required string ItemName { get; set; }
     public required Category Category { get; set; }
     public required bool IsAvailable { get; set; }
-    [JsonIgnore]
     public List<Reservation> Reservations { get; } = new();
 
 }

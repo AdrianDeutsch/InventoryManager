@@ -1,0 +1,101 @@
+@* Dialog to take an item back. Closes with true once the return is saved. *@
+@inject ReservationService ReservationService
+@inject LoanPolicy LoanPolicy
+@inject DialogService DialogService
+@inject ILogger<TechnicalErrorNotifier> Logger
+
+<RadzenStack Gap="1.25rem" data-test="return-dialog">
+    <RadzenText TextStyle="TextStyle.Body1" class="rz-m-0">
+        Take back <strong>@ItemName</strong> from @PersonName
+        <span class="status-detail">(lent on @Format.Date(LoanDate))</span>
+    </RadzenText>
+
+    @if (_error is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false"
+                     class="rz-m-0" data-test="dialog-error">@_error</RadzenAlert>
+    }
+
+    <RadzenFormField Text="Taken back by" Variant="Variant.Outlined" Style="width: 100%">
+        <RadzenDropDown TValue="int?" @bind-Value="_staffId" Data="@_staff" TextProperty="Text" ValueProperty="Id"
+                        Placeholder="Select a staff member" data-test="return-staff" />
+    </RadzenFormField>
+
+    <RadzenFormField Text="Returned on" Variant="Variant.Outlined" Style="width: 100%">
+        <RadzenDatePicker TValue="DateTime" @bind-Value="_returnDate" DateFormat="@Format.DatePickerFormat"
+                          Min="@LoanDate.ToDateTime(TimeOnly.MinValue)" Max="@_today" ShowTime="false" data-test="return-date" />
+    </RadzenFormField>
+
+    <div>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenSwitch @bind-Value="_damaged" Name="damaged" data-test="return-damaged" />
+            <RadzenLabel Text="Returned damaged" Component="damaged" />
+        </RadzenStack>
+        <p class="form-hint">A damaged item stays blocked until you release it in the inventory list.</p>
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Cancel" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Light" Disabled="@_saving"
+                      Click="@(() => DialogService.Close(false))" />
+        <RadzenButton Text="Take back" Icon="assignment_return" ButtonStyle="ButtonStyle.Primary"
+                      IsBusy="@_saving" Disabled="@(_saving || _staffId is null)" Click="@ReturnAsync" data-test="return-confirm" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter, EditorRequired] public int ReservationId { get; set; }
+    [Parameter, EditorRequired] public string ItemName { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string PersonName { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public DateOnly LoanDate { get; set; }
+
+    private IReadOnlyList<LookupEntry> _staff = [];
+    private int? _staffId;
+    private DateTime _today;
+    private DateTime _returnDate;
+    private bool _damaged;
+    private string? _error;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _today = LoanPolicy.Today.ToDateTime(TimeOnly.MinValue);
+        _returnDate = _today;
+        try
+        {
+            _staff = await ReservationService.GetStaffAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "The list of staff could not be loaded.");
+            _error = "The list of staff could not be loaded. " + TechnicalErrorNotifier.Advice;
+        }
+    }
+
+    private async Task ReturnAsync()
+    {
+        if (_staffId is not { } staffId)
+            return;
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            await ReservationService.ReturnAsync(
+                new ReturnItemCmd(ReservationId, staffId, DateOnly.FromDateTime(_returnDate), _damaged));
+            DialogService.Close(true);
+        }
+        catch (Exception ex) when (ex is not BusinessRuleException)
+        {
+            Logger.LogError(ex, "Saving failed");
+            _error = "Saving failed. " + TechnicalErrorNotifier.Advice;
+        }
+        catch (BusinessRuleException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

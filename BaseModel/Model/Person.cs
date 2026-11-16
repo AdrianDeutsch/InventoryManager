@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 
 namespace BaseModel.Model;
 
@@ -23,6 +22,5 @@ public class Person
     public required string SchoolClass { get; set; }
     public required string Email { get; set; }
     public required string Phone { get; set; }
-    [JsonIgnore]
     public List<Reservation> Reservations { get; } = new();
 }

@@ -1,41 +1,59 @@
-using WebApp.Components;
 using Application.Services;
 using BaseModel.Infrastructure;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
+using WebApp.Components;
+using WebApp.Components.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- Blazor Server (InteractiveServer) ---
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-
-// --- Radzen: notification, dialog, tooltip and context-menu services ---
 builder.Services.AddRadzenComponents();
+builder.Services.AddHealthChecks();
 
-// --- Persistence ---
-// The connection string points to an in-memory SQLite database (DataSource=:memory:).
-// In-memory databases live exactly as long as their underlying connection, so we open a
-// single shared connection up front and keep it alive for the whole application lifetime.
-// EF Core never closes a connection it did not open itself, which is exactly what we need here.
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Missing ConnectionStrings:Default in appsettings.json.");
-var connection = new SqliteConnection(connectionString);
-connection.Open();
+// A factory instead of a scoped DbContext: in Blazor Server a scope lives as long as the
+// browser tab stays open, so a scoped context would be shared by every click of a user and
+// keep serving the entities it loaded minutes ago. The services create one context per operation.
+// The connection string is read when the first context is created, not here: the end-to-end
+// tests start this program with their own configuration, which is only complete after Build().
+builder.Services.AddDbContextFactory<ReservationContext>((services, options) =>
+{
+    var connectionString = new SqliteConnectionStringBuilder(
+        services.GetRequiredService<IConfiguration>().GetConnectionString("Default")
+        ?? throw new InvalidOperationException("Missing ConnectionStrings:Default in appsettings.json."));
+    // A relative file name would depend on the directory the app happens to be started from.
+    if (!Path.IsPathRooted(connectionString.DataSource))
+    {
+        connectionString.DataSource = Path.Combine(
+            services.GetRequiredService<IHostEnvironment>().ContentRootPath, connectionString.DataSource);
+    }
 
-builder.Services.AddDbContext<ReservationContext>(options => options.UseSqlite(connection));
+    options.UseSqlite(connectionString.ToString());
+});
+
+builder.Services.Configure<LoanOptions>(builder.Configuration.GetSection(LoanOptions.SectionName));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<LoanPolicy>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<ReservationService>();
+builder.Services.AddScoped<LoanDialogs>();
+builder.Services.AddScoped<TechnicalErrorNotifier>();
 
 var app = builder.Build();
 
-// Create (and in development seed) the schema once on the shared connection.
-using (var scope = app.Services.CreateScope())
+// Bring the schema up to date before the first request and, if configured, fill an empty
+// database with demo data.
+await using (var db = await app.Services.GetRequiredService<IDbContextFactory<ReservationContext>>().CreateDbContextAsync())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ReservationContext>();
-    db.Database.EnsureCreated();
-    if (app.Environment.IsDevelopment())
-        db.Seed();
+    await db.Database.MigrateAsync();
+    if (app.Configuration.GetValue<bool>("DemoData:SeedOnEmptyDatabase"))
+    {
+        var today = app.Services.GetRequiredService<LoanPolicy>().Today;
+        if (await DemoDataSeeder.SeedIfEmptyAsync(db, today))
+            app.Logger.LogInformation("Empty database: demo data created.");
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -43,11 +61,21 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
+// The UI is English, so dates and numbers follow one English culture, whatever the
+// language of the server or the browser is.
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture("en-GB")
+    .AddSupportedCultures("en-GB")
+    .AddSupportedUICultures("en-GB"));
+
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.MapHealthChecks("/healthz");
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
-connection.Close();
+
+// Makes the entry point visible to the end-to-end tests, which host the app themselves.
+public partial class Program;

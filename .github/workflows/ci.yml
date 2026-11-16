@@ -1,0 +1,64 @@
+name: CI
+
+# One job, ordered from fast to slow: build -> service tests (real SQLite) -> browser tests.
+# A red step stops the job, so the browser never starts on top of broken business logic.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  # Minimum line coverage of the domain model and the service layer.
+  COVERAGE_THRESHOLD: "90"
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build (warnings are errors)
+        run: dotnet build InventoryManager.sln -c Release -warnaserror
+
+      - name: Service tests
+        run: >
+          dotnet test Application.Test -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
+
+      - name: Coverage gate
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:coverage \
+            -reporttypes:"TextSummary;MarkdownSummaryGithub" \
+            -assemblyfilters:"+Application;+BaseModel" \
+            -classfilters:"-BaseModel.Infrastructure.Migrations.*;-BaseModel.Infrastructure.DesignTimeContextFactory"
+          cat coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          line=$(grep -m1 "Line coverage" coverage/Summary.txt | grep -oE "[0-9]+(\.[0-9]+)?")
+          echo "Line coverage: ${line}% (minimum: ${COVERAGE_THRESHOLD}%)"
+          awk -v actual="$line" -v minimum="$COVERAGE_THRESHOLD" 'BEGIN { exit (actual + 0 < minimum + 0) }' \
+            || { echo "::error::Line coverage ${line}% is below ${COVERAGE_THRESHOLD}%"; exit 1; }
+
+      - name: Install Chromium for Playwright
+        run: pwsh WebApp.E2ETest/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+      - name: End-to-end tests (Playwright)
+        run: dotnet test WebApp.E2ETest -c Release --no-build
+
+      - name: Keep screenshots and traces of failed browser tests
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-artifacts
+          path: WebApp.E2ETest/bin/Release/net10.0/artifacts/
+          if-no-files-found: ignore

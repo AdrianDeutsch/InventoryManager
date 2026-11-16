@@ -1,19 +1,19 @@
 @page "/inventory/{Id:int}"
 @inject InventoryService InventoryService
-@inject NotificationService NotificationService
+@inject LoanDialogs LoanDialogs
+@inject TechnicalErrorNotifier Errors
 @inject NavigationManager Navigation
 
-<PageTitle>Inventory item @Id</PageTitle>
+<PageTitle>@(_details?.Item.ItemName ?? $"Item {Id}")</PageTitle>
 
 <RadzenStack Gap="1.5rem">
 
-    @* --- Breadcrumb + header -------------------------------------------- *@
     <RadzenStack Gap="0.75rem">
-        <RadzenButton Icon="arrow_back" Variant="Variant.Text" Text="Back to overview"
-                      ButtonStyle="ButtonStyle.Secondary" class="rz-p-0"
+        <RadzenButton Icon="arrow_back" Variant="Variant.Text" Text="Back to inventory"
+                      ButtonStyle="ButtonStyle.Base" class="rz-p-0 back-link"
                       Click="@(() => Navigation.NavigateTo("/"))" />
         <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1" class="page-header rz-m-0">
-            @(_item?.ItemName ?? $"Item {Id}")
+            @(_details?.Item.ItemName ?? $"Item {Id}")
         </RadzenText>
     </RadzenStack>
 
@@ -21,70 +21,116 @@
     {
         <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
     }
-    else if (_item is null)
+    else if (_loadFailed)
     {
-        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" AllowClose="false">
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" AllowClose="false" data-test="item-load-failed">
+            This item could not be loaded. @TechnicalErrorNotifier.Advice
+        </RadzenAlert>
+    }
+    else if (_details is null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Warning" Variant="Variant.Flat" AllowClose="false" data-test="item-not-found">
             No inventory item with id @Id exists.
         </RadzenAlert>
     }
     else
     {
+        var item = _details.Item;
+
         <RadzenCard>
             <RadzenStack Gap="1.5rem">
                 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                              JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem">
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
-                        <span class="stat-icon" style="background:color-mix(in srgb, var(--rz-primary) 14%, transparent); color:var(--rz-primary)">
-                            <RadzenIcon Icon="inventory_2" />
-                        </span>
-                        <RadzenText TextStyle="TextStyle.H6" class="rz-m-0">@_item.ItemName</RadzenText>
-                    </RadzenStack>
-                    <RadzenBadge BadgeStyle="@(_item.IsAvailable ? BadgeStyle.Success : BadgeStyle.Danger)"
-                                 Variant="Variant.Flat" IsPill="true"
-                                 Text="@(_item.IsAvailable ? "Available" : "Unavailable")" />
+                    <ItemStatusBadge Item="@item" ShowBorrower="false" />
+                    @if (item.CurrentLoan is { } loan)
+                    {
+                        <RadzenButton Text="Take back" Icon="assignment_return" ButtonStyle="ButtonStyle.Primary"
+                                      Click="@(() => ReturnAsync(item, loan))" data-test="return-item" />
+                    }
+                    else if (item.IsAvailable)
+                    {
+                        <RadzenButton Text="Lend" Icon="assignment_ind" ButtonStyle="ButtonStyle.Primary"
+                                      Click="@(() => LendAsync(item))" data-test="lend-item" />
+                    }
                 </RadzenStack>
 
                 <RadzenRow RowGap="1.5rem">
                     <RadzenColumn Size="12" SizeMd="4">
-                        <p class="field-label">Id</p>
-                        <p class="field-value">@_item.Id</p>
-                    </RadzenColumn>
-                    <RadzenColumn Size="12" SizeMd="4">
                         <p class="field-label">Serial number</p>
-                        <p class="field-value">@_item.SerialNumber</p>
+                        <p class="field-value" data-test="detail-serial">@item.SerialNumber</p>
                     </RadzenColumn>
                     <RadzenColumn Size="12" SizeMd="4">
                         <p class="field-label">Category</p>
-                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@_item.Category.Text" />
+                        <p class="field-value">@item.Category</p>
                     </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMd="4">
+                        <p class="field-label">Times lent</p>
+                        <p class="field-value">@_details.History.Count</p>
+                    </RadzenColumn>
+                    @if (item.CurrentLoan is { } currentLoan)
+                    {
+                        <RadzenColumn Size="12" SizeMd="4">
+                            <p class="field-label">Lent to</p>
+                            <p class="field-value" data-test="detail-borrower">@currentLoan.PersonName · @currentLoan.SchoolClass</p>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMd="4">
+                            <p class="field-label">Lent on</p>
+                            <p class="field-value">@Format.Date(currentLoan.LoanDate)</p>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMd="4">
+                            <p class="field-label">Due back</p>
+                            <p class="field-value">@Format.Date(currentLoan.DueDate)</p>
+                        </RadzenColumn>
+                    }
                 </RadzenRow>
             </RadzenStack>
         </RadzenCard>
+
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.H6" TagName="TagName.H2" class="rz-m-0">Loan history</RadzenText>
+            <LoanHistoryGrid Entries="@_details.History" />
+        </RadzenStack>
     }
 </RadzenStack>
 
 @code {
     [Parameter] public int Id { get; set; }
 
-    private InventoryItem? _item;
+    private InventoryItemDetails? _details;
     private bool _loading = true;
+    // Distinguishes "the item does not exist" from "we could not find out".
+    private bool _loadFailed;
 
-    protected override async Task OnParametersSetAsync()
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
         _loading = true;
+        _loadFailed = false;
         try
         {
-            _item = await InventoryService.InventoryItems
-                .Include(item => item.Category)
-                .FirstOrDefaultAsync(item => item.Id == Id);
+            _details = await InventoryService.GetItemAsync(Id);
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Could not load item", ex.Message);
+            _loadFailed = true;
+            Errors.Report(ex, "Could not load item");
         }
         finally
         {
             _loading = false;
         }
+    }
+
+    private async Task LendAsync(InventoryItemSummary item)
+    {
+        if (await LoanDialogs.LendAsync(item.Id, item.ItemName, item.SerialNumber))
+            await LoadAsync();
+    }
+
+    private async Task ReturnAsync(InventoryItemSummary item, CurrentLoan loan)
+    {
+        if (await LoanDialogs.ReturnAsync(loan.ReservationId, item.ItemName, loan.PersonName, loan.LoanDate))
+            await LoadAsync();
     }
 }

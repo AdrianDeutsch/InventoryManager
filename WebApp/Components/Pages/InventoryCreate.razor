@@ -1,17 +1,16 @@
 @page "/inventory/create"
 @inject InventoryService InventoryService
-@inject ReservationContext Db
 @inject NotificationService NotificationService
+@inject TechnicalErrorNotifier Errors
 @inject NavigationManager Navigation
 
 <PageTitle>New inventory item</PageTitle>
 
 <RadzenStack Gap="1.5rem" Style="max-width: 680px">
 
-    @* --- Breadcrumb + header -------------------------------------------- *@
     <RadzenStack Gap="0.75rem">
-        <RadzenButton Icon="arrow_back" Variant="Variant.Text" Text="Back to overview"
-                      ButtonStyle="ButtonStyle.Secondary" class="rz-p-0"
+        <RadzenButton Icon="arrow_back" Variant="Variant.Text" Text="Back to inventory"
+                      ButtonStyle="ButtonStyle.Base" class="rz-p-0 back-link"
                       Click="@(() => Navigation.NavigateTo("/"))" />
         <RadzenStack Gap="0.25rem" class="page-header">
             <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">New item</RadzenText>
@@ -22,8 +21,8 @@
     </RadzenStack>
 
     <RadzenCard>
-        @* Standard EditForm + DataAnnotationsValidator keeps the validation rules in a single
-           place (InventoryItemFormModel); no invalid record can reach the service. *@
+        @* The form catches typing mistakes early. The rules that must always hold (unique serial
+           number, existing category) are enforced by the service and reported below. *@
         <EditForm Model="_model" OnValidSubmit="SubmitAsync">
             <DataAnnotationsValidator />
             <RadzenStack Gap="1.25rem">
@@ -31,21 +30,21 @@
                     <RadzenFormField Text="Serial number" Variant="Variant.Outlined" Style="width: 100%">
                         <Start><RadzenIcon Icon="qr_code_2" /></Start>
                         <ChildContent>
-                            <RadzenTextBox @bind-Value="_model.SerialNumber" MaxLength="255" />
+                            <RadzenTextBox @bind-Value="_model.SerialNumber" MaxLength="255" data-test="serial-number" />
                         </ChildContent>
                     </RadzenFormField>
-                    <ValidationMessage For="@(() => _model.SerialNumber)" class="rz-color-danger" />
+                    <ValidationMessage For="@(() => _model.SerialNumber)" class="validation-message rz-color-danger" />
+                    <p class="form-hint">Unique per item. Stored in upper case.</p>
                 </div>
 
                 <div>
                     <RadzenFormField Text="Name" Variant="Variant.Outlined" Style="width: 100%">
                         <Start><RadzenIcon Icon="label" /></Start>
                         <ChildContent>
-                            <RadzenTextBox @bind-Value="_model.ItemName" MaxLength="255" />
+                            <RadzenTextBox @bind-Value="_model.ItemName" MaxLength="255" data-test="item-name" />
                         </ChildContent>
                     </RadzenFormField>
-                    <ValidationMessage For="@(() => _model.ItemName)" class="rz-color-danger" />
-                    <p class="form-hint">Between 1 and 255 characters.</p>
+                    <ValidationMessage For="@(() => _model.ItemName)" class="validation-message rz-color-danger" />
                 </div>
 
                 <div>
@@ -53,20 +52,22 @@
                         <Start><RadzenIcon Icon="category" /></Start>
                         <ChildContent>
                             <RadzenDropDown @bind-Value="_model.CategoryId" Data="@_categories"
-                                            TextProperty="Text" ValueProperty="Id" Placeholder="Select a category" />
+                                            TextProperty="Text" ValueProperty="Id" Placeholder="Select a category"
+                                            data-test="category" />
                         </ChildContent>
                     </RadzenFormField>
-                    <ValidationMessage For="@(() => _model.CategoryId)" class="rz-color-danger" />
+                    <ValidationMessage For="@(() => _model.CategoryId)" class="validation-message rz-color-danger" />
                 </div>
 
                 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                     <RadzenSwitch @bind-Value="_model.IsAvailable" Name="isAvailable" />
-                    <RadzenLabel Text="Available for loan" Component="isAvailable" />
+                    <RadzenLabel Text="Can be lent right away" Component="isAvailable" />
                 </RadzenStack>
 
                 <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-2">
                     <RadzenButton ButtonType="ButtonType.Submit" Text="Create item" Icon="save"
-                                  ButtonStyle="ButtonStyle.Primary" IsBusy="@_submitting" Disabled="@_submitting" />
+                                  ButtonStyle="ButtonStyle.Primary" IsBusy="@_submitting" Disabled="@_submitting"
+                                  data-test="create-item" />
                     <RadzenButton ButtonType="ButtonType.Button" Text="Cancel" Variant="Variant.Flat"
                                   ButtonStyle="ButtonStyle.Light" Disabled="@_submitting"
                                   Click="@(() => Navigation.NavigateTo("/"))" />
@@ -78,38 +79,39 @@
 
 @code {
     private readonly InventoryItemFormModel _model = new();
-    private IReadOnlyList<Category> _categories = [];
+    private IReadOnlyList<LookupEntry> _categories = [];
     private bool _submitting;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            _categories = await Db.Categories.OrderBy(category => category.Text).ToListAsync();
+            _categories = await InventoryService.GetCategoriesAsync();
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Could not load categories", ex.Message);
+            Errors.Report(ex, "Could not load categories");
         }
     }
 
-    /// <summary>
-    /// Invoked only once the model passes annotation validation. Translates domain failures
-    /// into user feedback while keeping the form open and editable on error.
-    /// </summary>
     private async Task SubmitAsync()
     {
         _submitting = true;
         try
         {
-            var created = await InventoryService.AddInventoryItem(_model.ToCommand());
+            var id = await InventoryService.AddInventoryItemAsync(_model.ToCommand());
             NotificationService.Notify(NotificationSeverity.Success, "Item created",
-                $"'{created.ItemName}' was created successfully.");
-            Navigation.NavigateTo($"/inventory/{created.Id}");
+                $"'{_model.ItemName.Trim()}' was added to the inventory.");
+            Navigation.NavigateTo($"/inventory/{id}");
         }
-        catch (InventoryServiceException ex)
+        catch (BusinessRuleException ex)
         {
+            // The form stays open and keeps its values, so the user only fixes what was wrong.
             NotificationService.Notify(NotificationSeverity.Error, "Could not create item", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Errors.Report(ex, "Could not create item");
         }
         finally
         {
