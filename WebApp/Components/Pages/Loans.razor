@@ -1,0 +1,93 @@
+@page "/loans"
+@inject ReservationService ReservationService
+@inject TechnicalErrorNotifier Errors
+@inject LoanDialogs LoanDialogs
+
+<PageTitle>Open loans</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+
+    <RadzenStack Gap="0.25rem" class="page-header">
+        <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Open loans</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body1" class="page-subtitle">
+            Everything that is currently out, the oldest loan first.
+        </RadzenText>
+    </RadzenStack>
+
+    <RadzenRow Gap="1rem">
+        <RadzenColumn Size="12" SizeSm="6" SizeMd="3">
+            <StatCard Title="Open loans" Value="@_loans.Count.ToString()" Icon="assignment_ind" Color="#0891b2" TestId="stat-open-loans" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeSm="6" SizeMd="3">
+            <StatCard Title="Overdue" Value="@_loans.Count(loan => loan.IsOverdue).ToString()"
+                      Icon="schedule" Color="#dc2626" TestId="stat-overdue" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenDataGrid Data="@_loans" TItem="OpenLoan" IsLoading="@_loading" AllowSorting="true"
+                    GridLines="DataGridGridLines.Horizontal" EmptyText="Nothing is on loan right now."
+                    data-test="loans-grid">
+        <Columns>
+            <RadzenDataGridColumn TItem="OpenLoan" Property="ItemName" Title="Item">
+                <Template Context="loan">
+                    <RadzenLink Path="@($"inventory/{loan.InventoryItemId}")" Text="@loan.ItemName" />
+                    <span class="status-detail"> · @loan.SerialNumber</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="OpenLoan" Property="PersonName" Title="Lent to">
+                <Template Context="loan">
+                    @loan.PersonName <span class="status-detail">· @loan.SchoolClass</span>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="OpenLoan" Property="LoanDate" Title="Lent on" Width="130px">
+                <Template Context="loan">@Format.Date(loan.LoanDate)</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="OpenLoan" Property="DueDate" Title="Due back" Width="130px">
+                <Template Context="loan">@Format.Date(loan.DueDate)</Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="OpenLoan" Property="IsOverdue" Title="Status" Width="120px">
+                <Template Context="loan">
+                    <RadzenBadge BadgeStyle="@(loan.IsOverdue ? BadgeStyle.Danger : BadgeStyle.Info)" Variant="Variant.Flat"
+                                 IsPill="true" Text="@(loan.IsOverdue ? "Overdue" : "On time")" />
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="OpenLoan" Title="" Width="120px" Sortable="false" TextAlign="TextAlign.Right">
+                <Template Context="loan">
+                    <RadzenButton Text="Take back" Size="ButtonSize.Small" Variant="Variant.Flat"
+                                  ButtonStyle="ButtonStyle.Info" Shade="Shade.Lighter" data-test="return-item"
+                                  Click="@(() => ReturnAsync(loan))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+</RadzenStack>
+
+@code {
+    private IReadOnlyList<OpenLoan> _loans = [];
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _loans = await ReservationService.GetOpenLoansAsync();
+        }
+        catch (Exception ex)
+        {
+            Errors.Report(ex, "Could not load loans");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ReturnAsync(OpenLoan loan)
+    {
+        if (await LoanDialogs.ReturnAsync(loan.ReservationId, loan.ItemName, loan.PersonName, loan.LoanDate))
+            await LoadAsync();
+    }
+}

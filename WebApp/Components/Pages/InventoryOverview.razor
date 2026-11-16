@@ -1,122 +1,115 @@
 @page "/"
 @page "/inventory"
 @inject InventoryService InventoryService
+@inject ReservationService ReservationService
 @inject NotificationService NotificationService
+@inject LoanDialogs LoanDialogs
+@inject TechnicalErrorNotifier Errors
 @inject NavigationManager Navigation
 
-<PageTitle>Inventory overview</PageTitle>
+<PageTitle>Inventory</PageTitle>
 
 <RadzenStack Gap="1.5rem">
 
-    @* --- Page header ----------------------------------------------------- *@
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem"
                  class="page-header">
         <RadzenStack Gap="0.25rem">
             <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Inventory</RadzenText>
             <RadzenText TextStyle="TextStyle.Body1" class="page-subtitle">
-                Manage your loanable equipment and its reservations.
+                Lend equipment, take it back and see who has what.
             </RadzenText>
         </RadzenStack>
         <RadzenButton Icon="add" Text="New item" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large"
-                      Click="@(() => Navigation.NavigateTo("/inventory/create"))" />
+                      Click="@(() => Navigation.NavigateTo("/inventory/create"))" data-test="new-item" />
     </RadzenStack>
 
-    @* --- KPI cards ------------------------------------------------------- *@
     <RadzenRow Gap="1rem">
-        <RadzenColumn Size="12" SizeSm="4">
-            <StatCard Title="Total items" Value="@_items.Count.ToString()"
-                      Icon="inventory_2" Color="#2563eb" />
+        <RadzenColumn Size="12" SizeSm="6" SizeMd="3">
+            <StatCard Title="Total items" Value="@_items.Count.ToString()" Icon="inventory_2" Color="#2563eb" TestId="stat-total" />
         </RadzenColumn>
-        <RadzenColumn Size="12" SizeSm="4">
-            <StatCard Title="Available" Value="@_availableCount.ToString()"
-                      Icon="check_circle" Color="#16a34a" />
+        <RadzenColumn Size="12" SizeSm="6" SizeMd="3">
+            <StatCard Title="Available" Value="@_items.Count(item => item.IsAvailable).ToString()"
+                      Icon="check_circle" Color="#16a34a" TestId="stat-available" />
         </RadzenColumn>
-        <RadzenColumn Size="12" SizeSm="4">
-            <StatCard Title="Unavailable" Value="@_unavailableCount.ToString()"
-                      Icon="do_not_disturb_on" Color="#dc2626" />
+        <RadzenColumn Size="12" SizeSm="6" SizeMd="3">
+            <StatCard Title="On loan" Value="@_items.Count(item => item.IsOnLoan).ToString()"
+                      Icon="assignment_ind" Color="#0891b2" TestId="stat-on-loan" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeSm="6" SizeMd="3">
+            <StatCard Title="Overdue" Value="@_items.Count(item => item.CurrentLoan?.IsOverdue == true).ToString()"
+                      Icon="schedule" Color="#dc2626" TestId="stat-overdue" />
         </RadzenColumn>
     </RadzenRow>
 
-    @* --- Toolbar + grid -------------------------------------------------- *@
     <RadzenCard Variant="Variant.Flat" class="rz-p-0">
-        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                     JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem"
-                     class="rz-p-3">
-            <RadzenFormField Text="Search by name or serial number" Variant="Variant.Outlined" Style="min-width: 320px">
+        <div class="rz-p-3">
+            <RadzenFormField Text="Search items, categories or people" Variant="Variant.Outlined"
+                             Style="width: min(100%, 420px)">
                 <Start><RadzenIcon Icon="search" /></Start>
                 <ChildContent>
-                    <RadzenTextBox @bind-Value="_search" @bind-Value:after="OnSearchAsync" />
+                    <RadzenTextBox @bind-Value="_search" @oninput="OnSearchInputAsync" data-test="search" />
                 </ChildContent>
             </RadzenFormField>
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                <RadzenSwitch @bind-Value="_includeReservations" Name="includeReservations"
-                              Change="@(async (bool _) => await LoadAsync())" />
-                <RadzenLabel Text="Load reservations" Component="includeReservations" />
-            </RadzenStack>
-        </RadzenStack>
+        </div>
 
-        <RadzenDataGrid @ref="_grid" Data="@FilteredItems" TItem="InventoryItem" IsLoading="@_loading"
+        <RadzenDataGrid @ref="_grid" Data="@FilteredItems" TItem="InventoryItemSummary" IsLoading="@_loading"
                         AllowSorting="true" AllowPaging="true" PageSize="10"
-                        ExpandMode="DataGridExpandMode.Single" GridLines="DataGridGridLines.Horizontal"
-                        EmptyText="No inventory items match your search.">
+                        ExpandMode="DataGridExpandMode.Single" RowExpand="@LoadHistoryAsync"
+                        GridLines="DataGridGridLines.Horizontal"
+                        EmptyText="No inventory items match your search." data-test="inventory-grid">
             <Columns>
-                <RadzenDataGridColumn TItem="InventoryItem" Property="Id" Title="Id" Width="72px" />
-                <RadzenDataGridColumn TItem="InventoryItem" Property="SerialNumber" Title="Serial number" Width="180px" />
-                <RadzenDataGridColumn TItem="InventoryItem" Property="ItemName" Title="Name" />
-                <RadzenDataGridColumn TItem="InventoryItem" Property="Category.Text" Title="Category" Width="160px">
+                <RadzenDataGridColumn TItem="InventoryItemSummary" Property="SerialNumber" Title="Serial number" Width="140px" />
+                <RadzenDataGridColumn TItem="InventoryItemSummary" Property="ItemName" Title="Name" />
+                <RadzenDataGridColumn TItem="InventoryItemSummary" Property="Category" Title="Category" Width="130px">
                     <Template Context="item">
-                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@item.Category.Text" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@item.Category" />
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="InventoryItem" Title="Availability" Width="150px" Sortable="false">
+                <RadzenDataGridColumn TItem="InventoryItemSummary" Title="Status" Width="270px" Sortable="false">
                     <Template Context="item">
-                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                            <RadzenSwitch Value="@item.IsAvailable"
-                                          Change="@(async (bool value) => await ToggleAvailabilityAsync(item, value))" />
-                            <RadzenText TextStyle="TextStyle.Caption" class="rz-m-0">
-                                @(item.IsAvailable ? "Available" : "Unavailable")
-                            </RadzenText>
+                        <ItemStatusBadge Item="@item" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="InventoryItemSummary" Title="Lendable" Width="100px" Sortable="false">
+                    <Template Context="item">
+                        @* Only staff can block or release an item; a loan blocks it on its own. *@
+                        <RadzenSwitch Value="@item.IsAvailable" Disabled="@item.IsOnLoan"
+                                      Change="@(async (bool value) => await ToggleAvailabilityAsync(item, value))"
+                                      title="@(item.IsOnLoan ? "On loan – take it back first" : "Block or release this item")" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="InventoryItemSummary" Title="" Width="170px" Sortable="false" TextAlign="TextAlign.Right">
+                    <Template Context="item">
+                        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.25rem">
+                            @if (item.CurrentLoan is { } loan)
+                            {
+                                <RadzenButton Text="Take back" Size="ButtonSize.Small" Variant="Variant.Flat"
+                                              ButtonStyle="ButtonStyle.Info" Shade="Shade.Lighter" data-test="return-item"
+                                              Click="@(() => ReturnAsync(item, loan))" />
+                            }
+                            else if (item.IsAvailable)
+                            {
+                                <RadzenButton Text="Lend" Size="ButtonSize.Small" Variant="Variant.Flat"
+                                              ButtonStyle="ButtonStyle.Primary" Shade="Shade.Lighter" data-test="lend-item"
+                                              Click="@(() => LendAsync(item))" />
+                            }
+                            <RadzenButton Icon="chevron_right" Size="ButtonSize.Small" Variant="Variant.Text"
+                                          ButtonStyle="ButtonStyle.Base" title="Show details" data-test="show-details"
+                                          Click="@(() => Navigation.NavigateTo($"/inventory/{item.Id}"))" />
                         </RadzenStack>
-                    </Template>
-                </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="InventoryItem" Title="" Width="64px" Sortable="false" TextAlign="TextAlign.Center">
-                    <Template Context="item">
-                        <RadzenButton Icon="visibility" Size="ButtonSize.Small" Variant="Variant.Text"
-                                      ButtonStyle="ButtonStyle.Secondary"
-                                      Click="@(() => Navigation.NavigateTo($"/inventory/{item.Id}"))"
-                                      title="Show details" />
                     </Template>
                 </RadzenDataGridColumn>
             </Columns>
             <Template Context="item">
-                @if (_includeReservations)
+                @if (_history.TryGetValue(item.Id, out var history))
                 {
-                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mt-2 rz-mb-1">Reservations</RadzenText>
-                    <RadzenDataGrid Data="@item.Reservations" TItem="Reservation" AllowSorting="true"
-                                    GridLines="DataGridGridLines.Horizontal"
-                                    EmptyText="No reservations for this item.">
-                        <Columns>
-                            <RadzenDataGridColumn TItem="Reservation" Title="Person">
-                                <Template Context="reservation">
-                                    @reservation.Person.FirstName @reservation.Person.LastName
-                                </Template>
-                            </RadzenDataGridColumn>
-                            <RadzenDataGridColumn TItem="Reservation" Property="LoanDate" Title="Loan date" />
-                            <RadzenDataGridColumn TItem="Reservation" Property="ReturnDate" Title="Return date" />
-                            <RadzenDataGridColumn TItem="Reservation" Property="Status.Text" Title="Status">
-                                <Template Context="reservation">
-                                    <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="@reservation.Status.Text" />
-                                </Template>
-                            </RadzenDataGridColumn>
-                        </Columns>
-                    </RadzenDataGrid>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-mt-2 rz-mb-1">Loan history</RadzenText>
+                    <LoanHistoryGrid Entries="@history" />
                 }
                 else
                 {
-                    <RadzenText TextStyle="TextStyle.Body2" class="rz-p-2 page-subtitle">
-                        Enable "Load reservations" to display the reservations of this item.
-                    </RadzenText>
+                    <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" />
                 }
             </Template>
         </RadzenDataGrid>
@@ -124,47 +117,43 @@
 </RadzenStack>
 
 @code {
-    private RadzenDataGrid<InventoryItem> _grid = default!;
-    private List<InventoryItem> _items = [];
+    private RadzenDataGrid<InventoryItemSummary> _grid = default!;
+    private IReadOnlyList<InventoryItemSummary> _items = [];
+    // Loan history per item id, loaded when a row is expanded for the first time.
+    private readonly Dictionary<int, IReadOnlyList<LoanHistoryEntry>> _history = [];
     private string _search = string.Empty;
-    private bool _includeReservations;
-    private bool _loading;
+    private bool _loading = true;
 
-    private int _availableCount;
-    private int _unavailableCount;
+    private IEnumerable<InventoryItemSummary> FilteredItems =>
+        string.IsNullOrWhiteSpace(_search) ? _items : _items.Where(Matches);
 
-    /// <summary>Applies the free-text filter (name or serial number) to the loaded items.</summary>
-    private IEnumerable<InventoryItem> FilteredItems =>
-        string.IsNullOrWhiteSpace(_search)
-            ? _items
-            : _items.Where(item =>
-                item.ItemName.Contains(_search, StringComparison.OrdinalIgnoreCase)
-                || item.SerialNumber.Contains(_search, StringComparison.OrdinalIgnoreCase));
+    private bool Matches(InventoryItemSummary item)
+    {
+        var term = _search.Trim();
+        return item.ItemName.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || item.SerialNumber.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || item.Category.Contains(term, StringComparison.OrdinalIgnoreCase)
+            || item.CurrentLoan?.PersonName.Contains(term, StringComparison.OrdinalIgnoreCase) == true;
+    }
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override Task OnInitializedAsync() => LoadAsync();
 
-    /// <summary>
-    /// (Re)loads all inventory items, eagerly fetching reservations only when requested.
-    /// </summary>
     private async Task LoadAsync()
     {
         _loading = true;
         try
         {
-            IQueryable<InventoryItem> query = InventoryService.InventoryItems.Include(item => item.Category);
-            if (_includeReservations)
-            {
-                query = query
-                    .Include(item => item.Reservations).ThenInclude(reservation => reservation.Person)
-                    .Include(item => item.Reservations).ThenInclude(reservation => reservation.Status);
-            }
+            _items = await InventoryService.GetItemsAsync();
 
-            _items = await query.OrderBy(item => item.Id).ToListAsync();
-            RecalculateStats();
+            // Loans changed, so the histories loaded so far may be outdated. They are loaded
+            // again instead of dropped: a row that is still expanded would otherwise wait for
+            // a history that nothing requests anymore.
+            foreach (var itemId in _history.Keys.ToList())
+                _history[itemId] = await ReservationService.GetHistoryAsync(itemId);
         }
         catch (Exception ex)
         {
-            NotifyError(ex);
+            Errors.Report(ex, "Could not load inventory");
         }
         finally
         {
@@ -172,37 +161,57 @@
         }
     }
 
-    private async Task OnSearchAsync() => await _grid.Reload();
+    private async Task OnSearchInputAsync(ChangeEventArgs args)
+    {
+        _search = args.Value?.ToString() ?? string.Empty;
+        await _grid.FirstPage(forceReload: true);
+    }
 
-    /// <summary>
-    /// Persists an availability change through the service and keeps the UI consistent:
-    /// on failure the optimistic value is rolled back so switch and data never drift apart.
-    /// </summary>
-    private async Task ToggleAvailabilityAsync(InventoryItem item, bool value)
+    private async Task LoadHistoryAsync(InventoryItemSummary item)
+    {
+        if (_history.ContainsKey(item.Id))
+            return;
+
+        try
+        {
+            _history[item.Id] = await ReservationService.GetHistoryAsync(item.Id);
+        }
+        catch (Exception ex)
+        {
+            Errors.Report(ex, "Could not load loan history");
+        }
+    }
+
+    private async Task ToggleAvailabilityAsync(InventoryItemSummary item, bool value)
     {
         try
         {
-            await InventoryService.UpdateAvailability(new UpdateAvailabilityCmd(item.Id, value));
-            item.IsAvailable = value;
-            RecalculateStats();
-            NotificationService.Notify(NotificationSeverity.Success, "Availability updated",
-                $"'{item.ItemName}' is now {(value ? "available" : "unavailable")}.");
+            await InventoryService.UpdateAvailabilityAsync(new UpdateAvailabilityCmd(item.Id, value));
+            NotificationService.Notify(NotificationSeverity.Success, value ? "Item released" : "Item blocked",
+                $"'{item.ItemName}' {(value ? "can be lent again" : "can no longer be lent")}.");
         }
-        catch (InventoryServiceException ex)
+        catch (BusinessRuleException ex)
         {
-            // Covers InventoryNotFoundException as well, since it derives from InventoryServiceException.
-            item.IsAvailable = !value;
             NotificationService.Notify(NotificationSeverity.Error, "Update failed", ex.Message);
-            await _grid.Reload();
         }
+        catch (Exception ex)
+        {
+            Errors.Report(ex, "Update failed");
+        }
+
+        // Reload in both cases: after a rejected change the switch must jump back to the stored value.
+        await LoadAsync();
     }
 
-    private void RecalculateStats()
+    private async Task LendAsync(InventoryItemSummary item)
     {
-        _availableCount = _items.Count(item => item.IsAvailable);
-        _unavailableCount = _items.Count - _availableCount;
+        if (await LoanDialogs.LendAsync(item.Id, item.ItemName, item.SerialNumber))
+            await LoadAsync();
     }
 
-    private void NotifyError(Exception ex) =>
-        NotificationService.Notify(NotificationSeverity.Error, "Could not load inventory", ex.Message);
+    private async Task ReturnAsync(InventoryItemSummary item, CurrentLoan loan)
+    {
+        if (await LoanDialogs.ReturnAsync(loan.ReservationId, item.ItemName, loan.PersonName, loan.LoanDate))
+            await LoadAsync();
+    }
 }

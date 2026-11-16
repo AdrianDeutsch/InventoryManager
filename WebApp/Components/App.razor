@@ -14,13 +14,19 @@
     <link rel="stylesheet" href="_content/Radzen.Blazor/css/material-wcag.css" />
     <link rel="stylesheet" href="app.css" />
     <link rel="icon" href="data:," />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="Interactive" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="Interactive" />
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 
 </html>
+
+@code {
+    // No prerendering: this is an internal tool, so nothing has to be indexed. In return every
+    // page loads its data once instead of twice, and no button is visible before it can react.
+    private static readonly IComponentRenderMode Interactive = new InteractiveServerRenderMode(prerender: false);
+}

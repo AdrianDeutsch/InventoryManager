@@ -1,0 +1,94 @@
+@* Dialog to hand an item out. Closes with true once the loan is saved. *@
+@inject ReservationService ReservationService
+@inject LoanPolicy LoanPolicy
+@inject DialogService DialogService
+@inject ILogger<TechnicalErrorNotifier> Logger
+
+<RadzenStack Gap="1.25rem" data-test="lend-dialog">
+    <RadzenText TextStyle="TextStyle.Body1" class="rz-m-0">
+        Hand out <strong>@ItemName</strong> <span class="status-detail">(@SerialNumber)</span>
+    </RadzenText>
+
+    @if (_error is not null)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter" AllowClose="false"
+                     class="rz-m-0" data-test="dialog-error">@_error</RadzenAlert>
+    }
+
+    <RadzenFormField Text="Person" Variant="Variant.Outlined" Style="width: 100%">
+        <RadzenDropDown TValue="int?" @bind-Value="_personId" Data="@_persons" TextProperty="Text" ValueProperty="Id"
+                        AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Placeholder="Select a person" data-test="lend-person" />
+    </RadzenFormField>
+
+    <div>
+        <RadzenFormField Text="Lent on" Variant="Variant.Outlined" Style="width: 100%">
+            <RadzenDatePicker TValue="DateTime" @bind-Value="_loanDate" DateFormat="@Format.DatePickerFormat"
+                              Max="@_today" ShowTime="false" data-test="lend-date" />
+        </RadzenFormField>
+        <p class="form-hint">Due back on @Format.Date(LoanPolicy.DueDate(DateOnly.FromDateTime(_loanDate))).</p>
+    </div>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+        <RadzenButton Text="Cancel" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Light" Disabled="@_saving"
+                      Click="@(() => DialogService.Close(false))" />
+        <RadzenButton Text="Lend item" Icon="assignment_ind" ButtonStyle="ButtonStyle.Primary"
+                      IsBusy="@_saving" Disabled="@(_saving || _personId is null)" Click="@LendAsync" data-test="lend-confirm" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter, EditorRequired] public int ItemId { get; set; }
+    [Parameter, EditorRequired] public string ItemName { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string SerialNumber { get; set; } = string.Empty;
+
+    private IReadOnlyList<LookupEntry> _persons = [];
+    private int? _personId;
+    private DateTime _today;
+    private DateTime _loanDate;
+    private string? _error;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _today = LoanPolicy.Today.ToDateTime(TimeOnly.MinValue);
+        _loanDate = _today;
+        try
+        {
+            _persons = await ReservationService.GetPersonsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "The list of people could not be loaded.");
+            _error = "The list of people could not be loaded. " + TechnicalErrorNotifier.Advice;
+        }
+    }
+
+    private async Task LendAsync()
+    {
+        if (_personId is not { } personId)
+            return;
+
+        _saving = true;
+        _error = null;
+        try
+        {
+            await ReservationService.LendAsync(new LendItemCmd(ItemId, personId, DateOnly.FromDateTime(_loanDate)));
+            DialogService.Close(true);
+        }
+        catch (Exception ex) when (ex is not BusinessRuleException)
+        {
+            Logger.LogError(ex, "Saving failed");
+            _error = "Saving failed. " + TechnicalErrorNotifier.Advice;
+        }
+        catch (BusinessRuleException ex)
+        {
+            // Keep the dialog open so the user can correct the input.
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

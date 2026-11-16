@@ -4,3 +4,15 @@
 **/.vs
 .DS_Store
 **/.idea
+
+# Local SQLite database (created on first start)
+*.db
+*.db-shm
+*.db-wal
+
+# Test and coverage output
+TestResults/
+coverage/
+
+# Local tool settings
+.claude/

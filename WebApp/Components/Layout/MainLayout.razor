@@ -15,7 +15,9 @@
 
     <RadzenSidebar @bind-Expanded="_sidebarExpanded" Responsive="true" class="rz-shadow-0">
         <RadzenPanelMenu>
-            <RadzenPanelMenuItem Text="Overview" Icon="dashboard" Path="/" Match="NavLinkMatch.All" />
+            <RadzenPanelMenuItem Text="Inventory" Icon="dashboard" Path="/" Match="NavLinkMatch.All" />
+            <RadzenPanelMenuItem Text="Open loans" Icon="assignment_return" Path="loans" />
+            <RadzenPanelMenuItem Text="Reports" Icon="bar_chart" Path="reports" />
             <RadzenPanelMenuItem Text="New item" Icon="add_box" Path="inventory/create" />
         </RadzenPanelMenu>
     </RadzenSidebar>
@@ -26,6 +28,14 @@
         </div>
     </RadzenBody>
 </RadzenLayout>
+
+@* Shown by the Blazor runtime when an error was not handled anywhere. Without it the page
+   would simply stop reacting. *@
+<div id="blazor-error-ui" data-nosnippet>
+    Something went wrong and this page can no longer be used.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss" title="Dismiss">✕</span>
+</div>
 
 @code {
     private bool _sidebarExpanded = true;

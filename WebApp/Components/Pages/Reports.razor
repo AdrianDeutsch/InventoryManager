@@ -1,0 +1,131 @@
+@page "/reports"
+@inject ReservationService ReservationService
+@inject LoanPolicy LoanPolicy
+@inject NotificationService NotificationService
+@inject TechnicalErrorNotifier Errors
+
+<PageTitle>Reports</PageTitle>
+
+<RadzenStack Gap="1.5rem">
+
+    <RadzenStack Gap="0.25rem" class="page-header">
+        <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1">Reports</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body1" class="page-subtitle">
+            How the inventory is made up and how it is used.
+        </RadzenText>
+    </RadzenStack>
+
+    <RadzenRow Gap="1rem" RowGap="1rem">
+        <RadzenColumn Size="12" SizeMd="4">
+            <RadzenCard class="report-card" data-test="report-categories">
+                <RadzenText TextStyle="TextStyle.H6" TagName="TagName.H2">Items per category</RadzenText>
+                <RadzenStack Gap="0.9rem" class="rz-mt-3">
+                    @foreach (var category in _categories)
+                    {
+                        <div>
+                            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween">
+                                <span>@category.Text</span>
+                                <strong>@category.Count</strong>
+                            </RadzenStack>
+                            <RadzenProgressBar Value="@category.Count" Max="@_largestCategory" ShowValue="false"
+                                               Style="height: 6px" class="rz-mt-1" />
+                        </div>
+                    }
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12" SizeMd="8">
+            <RadzenCard class="report-card" data-test="report-borrowers">
+                <RadzenText TextStyle="TextStyle.H6" TagName="TagName.H2">People with items on loan</RadzenText>
+                <RadzenDataGrid Data="@_borrowers" TItem="Borrower" class="rz-mt-3" AllowSorting="true"
+                                GridLines="DataGridGridLines.Horizontal" EmptyText="Nobody holds an item right now.">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="Borrower" Property="Name" Title="Name" Width="190px" />
+                        <RadzenDataGridColumn TItem="Borrower" Property="SchoolClass" Title="Class" Width="90px" />
+                        <RadzenDataGridColumn TItem="Borrower" Property="Email" Title="E-mail" />
+                        <RadzenDataGridColumn TItem="Borrower" Property="OpenLoans" Title="Items" Width="100px" TextAlign="TextAlign.Right" />
+                    </Columns>
+                </RadzenDataGrid>
+            </RadzenCard>
+        </RadzenColumn>
+
+        <RadzenColumn Size="12">
+            <RadzenCard class="report-card" data-test="report-unused">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                             JustifyContent="JustifyContent.SpaceBetween" Wrap="FlexWrap.Wrap" Gap="1rem">
+                    <RadzenStack Gap="0">
+                        <RadzenText TextStyle="TextStyle.H6" TagName="TagName.H2" class="rz-m-0">Not lent in @_year</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" class="page-subtitle rz-m-0">
+                            Candidates for sorting out: nobody borrowed these items in the selected year.
+                        </RadzenText>
+                    </RadzenStack>
+                    <RadzenFormField Text="Year" Variant="Variant.Outlined" Style="width: 140px">
+                        <RadzenNumeric TValue="int" Value="@_year" ValueChanged="@OnYearChangedAsync" Min="2000" Max="@_currentYear"
+                                       Format="0" data-test="report-year" />
+                    </RadzenFormField>
+                </RadzenStack>
+                <RadzenDataGrid Data="@_unusedItems" TItem="InventoryItemSummary" class="rz-mt-3" AllowSorting="true"
+                                GridLines="DataGridGridLines.Horizontal" EmptyText="Every item was lent at least once in this year.">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="InventoryItemSummary" Property="ItemName" Title="Name">
+                            <Template Context="item">
+                                <RadzenLink Path="@($"inventory/{item.Id}")" Text="@item.ItemName" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="InventoryItemSummary" Property="SerialNumber" Title="Serial number" Width="160px" />
+                        <RadzenDataGridColumn TItem="InventoryItemSummary" Property="Category" Title="Category" Width="160px" />
+                        <RadzenDataGridColumn TItem="InventoryItemSummary" Title="Status" Width="140px" Sortable="false">
+                            <Template Context="item">
+                                <ItemStatusBadge Item="@item" ShowBorrower="false" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private IReadOnlyList<CategoryWithCount> _categories = [];
+    private IReadOnlyList<Borrower> _borrowers = [];
+    private IReadOnlyList<InventoryItemSummary> _unusedItems = [];
+    private double _largestCategory = 1;
+    private int _currentYear;
+    private int _year;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentYear = LoanPolicy.Today.Year;
+        _year = _currentYear;
+        try
+        {
+            _categories = await ReservationService.GetCategoriesWithCountAsync();
+            _largestCategory = Math.Max(1, _categories.Select(category => category.Count).DefaultIfEmpty().Max());
+            _borrowers = await ReservationService.GetPersonsWithOpenReservationsAsync();
+            _unusedItems = await ReservationService.GetInventoryItemsWithoutReservationsAsync(_year);
+        }
+        catch (Exception ex)
+        {
+            Errors.Report(ex, "Could not load reports");
+        }
+    }
+
+    private async Task OnYearChangedAsync(int year)
+    {
+        _year = year;
+        try
+        {
+            _unusedItems = await ReservationService.GetInventoryItemsWithoutReservationsAsync(year);
+        }
+        catch (BusinessRuleException ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Could not load report", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Errors.Report(ex, "Could not load report");
+        }
+    }
+}

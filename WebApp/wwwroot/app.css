@@ -131,3 +131,55 @@ body {
     font-size: .8rem;
     margin: .15rem 0 0;
 }
+
+/* Secondary information next to a name or badge (borrower, class, serial number) */
+.status-detail {
+    color: var(--rz-text-secondary-color, #6b7280);
+    font-size: .85rem;
+}
+
+/* --- Reports ------------------------------------------------------------- */
+.report-card {
+    height: 100%;
+}
+
+/* The router moves the focus to the page heading after navigation (for screen readers).
+   The heading is not interactive, so it does not need a visible focus ring. */
+h1:focus {
+    outline: none;
+}
+
+.back-link {
+    align-self: flex-start;
+}
+
+/* Links use the brand colour instead of the theme's secondary colour. */
+a.rz-link {
+    color: var(--rz-primary);
+}
+
+/* --- Unhandled error banner (toggled by the Blazor runtime) --------------- */
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 3000;
+    padding: .75rem 3rem .75rem 1.25rem;
+    background: #fef2f2;
+    color: #7f1d1d;
+    border-top: 1px solid #fecaca;
+    box-shadow: 0 -2px 6px rgba(16, 24, 40, .12);
+}
+
+#blazor-error-ui .reload {
+    margin-left: .5rem;
+    font-weight: 600;
+    color: inherit;
+}
+
+#blazor-error-ui .dismiss {
+    position: absolute;
+    right: 1rem;
+    top: .7rem;
+    cursor: pointer;
+}

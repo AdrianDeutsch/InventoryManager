@@ -1,0 +1,27 @@
+@* Shows at a glance whether an item can be lent, who has it, or why it cannot be lent. *@
+@if (Item.CurrentLoan is { } loan)
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+        <RadzenBadge BadgeStyle="@(loan.IsOverdue ? BadgeStyle.Danger : BadgeStyle.Info)" Variant="Variant.Flat"
+                     IsPill="true" Text="@(loan.IsOverdue ? "Overdue" : "On loan")" data-test="item-status" />
+        @if (ShowBorrower)
+        {
+            <span class="status-detail">@loan.PersonName · due @Format.Date(loan.DueDate)</span>
+        }
+    </RadzenStack>
+}
+else if (Item.IsAvailable)
+{
+    <RadzenBadge BadgeStyle="BadgeStyle.Success" Variant="Variant.Flat" IsPill="true" Text="Available" data-test="item-status" />
+}
+else
+{
+    <RadzenBadge BadgeStyle="BadgeStyle.Warning" Variant="Variant.Flat" IsPill="true" Text="Blocked" data-test="item-status" />
+}
+
+@code {
+    [Parameter, EditorRequired] public InventoryItemSummary Item { get; set; } = default!;
+
+    /// <summary>Adds the borrower and the due date next to the badge.</summary>
+    [Parameter] public bool ShowBorrower { get; set; } = true;
+}
